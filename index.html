@@ -4037,7 +4037,7 @@ var qrcode = function() {
       if (b.dataset.out === 'preview') openPreview(w); else if (b.dataset.out === 'pdf') exportPdf(w); else doPrint(w);
     }));
   }
-  const printBtns = () => `<button class="btn primary" data-out="preview">معاينة</button><button class="btn" data-out="pdf">تنزيل PDF</button><button class="btn" data-out="print">طباعة</button>`;
+  const printBtns = () => `<button class="btn primary" data-out="preview">معاينة</button><button class="btn" data-out="pdf">حفظ PDF</button><button class="btn" data-out="print">طباعة</button>`;
   const viewNames = (kind) => (kind === 'quote' ? { summary: 'العرض الإجمالي', detail: 'العرض التفصيلي', both: 'الاثنان معًا' } : { summary: 'الفاتورة الإجمالية', detail: 'الفاتورة التفصيلية', both: 'الاثنتان معًا' });
   const docNodes = (which) => (which === 'both' ? ['.doc-summary', '.doc-detail'] : [which === 'detail' ? '.doc-detail' : '.doc-summary']).map((c) => $('.docs ' + c)).filter(Boolean);
   const fileName = (which) => PV.name + (which === 'detail' ? ' - تفصيلية' : which === 'both' ? ' - كاملة' : '');
@@ -4050,73 +4050,11 @@ var qrcode = function() {
     c.dataset.show = DOCVIEW; document.title = t;
   }
 
-  // مكتبة PDF تُحمَّل عند أول تصدير: من الملف المرافق للصفحة أولًا (يعمل دون إنترنت)، ثم من cdnjs
-  let H2P = null;
-  function loadPdfLib() {
-    if (window.html2pdf) return Promise.resolve(window.html2pdf);
-    const add = (src) => new Promise((ok, bad) => {
-      const el = document.createElement('script'); el.src = src;
-      el.onload = () => (window.html2pdf ? ok(window.html2pdf) : bad(new Error('load')));
-      el.onerror = () => { el.parentNode.removeChild(el); bad(new Error('load')); };
-      document.head.appendChild(el);
-    });
-    if (!H2P) H2P = add('vendor/html2pdf.bundle.min.js')
-      .catch(() => add('https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'))
-      .catch((e) => { H2P = null; throw e; });
-    return H2P;
-  }
-  // قدرة من بيئة Artifact، أو null خارجها (الملف المحلي يحفظ مباشرة)
-  async function claudeCap(name) {
-    try { return window.claude && window.claude.use ? await window.claude.use(name) : null; } catch (e) { return null; }
-  }
-  let PDF_BUSY = false;
-  async function exportPdf(which) {
-    if (PDF_BUSY) return;
-    if (PV.onExport && !PV.onExport()) return;
-    PDF_BUSY = true; $$('[data-out="pdf"],#pv-pdf').forEach((b) => { b.disabled = true; b.dataset.t = b.textContent; b.textContent = 'جارٍ التجهيز…'; });
-    try {
-      let lib;
-      try { lib = await loadPdfLib(); } catch (e) {
-        toast('تعذّر تحميل أداة PDF. ستفتح نافذة الطباعة: اختر «حفظ كـ PDF».', true);
-        const o = PV.onExport; // سُجّل التصدير مرة واحدة أعلاه PV.onExport = null; try { doPrint(which); } finally { PV.onExport = o; }
-        return;
-      }
-      if (document.fonts && document.fonts.ready) await document.fonts.ready;
-      const el = document.createElement('div'); el.className = 'paper'; el.style.width = '718px'; // العرض الداخلي لصفحة A4 بهامش 10 مم (190 مم)، فلا يُقص طرف
-      el.style.padding = '0';
-      el.innerHTML = docNodes(which).map((n, i) => (i ? '<div class="html2pdf__page-break"></div>' : '') + n.outerHTML).join('');
-      // أداة الرسم تقطع الأرقام عند الشرطة فتنفصل «INV-2026-0001» والتواريخ داخل النص العربي؛
-      // تباعد حروف ضئيل يجعلها ترسم كل حرف في موضعه الصحيح (للأرقام فقط، فالعربية تبقى متصلة)
-      // (والأرقام بعرضها الطبيعي، لأن أداة الرسم لا تطبق الأرقام متساوية العرض فتظهر فجوة بعد «1»)
-      $$('.num', el).forEach((x) => { x.style.letterSpacing = '0.01px'; x.style.fontVariantNumeric = 'normal'; });
-      // بطاقتان في كل صف، والصف لا ينقسم بين صفحتين (فاصل الصفحة يُدرج قبل الصف لا داخل الشبكة)
-      $$('.opc-grid', el).forEach((g) => {
-        const cards = [...g.children]; g.className = 'opc-rows'; g.innerHTML = '';
-        for (let i = 0; i < cards.length; i += 2) { const r = document.createElement('div'); r.className = 'opc-grid opc-row'; cards.slice(i, i + 2).forEach((c) => r.appendChild(c)); g.appendChild(r); }
-      });
-      const name = fileName(which) + '.pdf';
-      const worker = lib().set({
-        margin: 10, filename: name,
-        image: { type: 'jpeg', quality: 0.96 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 718, logging: false },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['css', 'legacy'], avoid: ['.opc-row', 'tr', 'h4', '.totals', '.sig', '.doc-head', '.doc-meta', '.sum-grid > div', '.opc-sum'] },
-      }).from(el);
-      // داخل Artifact: التنزيل المباشر محجوب، فيُعرض الملف عبر قدرة downloads (يوافق المستخدم)
-      const dl = await claudeCap('downloads');
-      if (dl) {
-        const blob = await worker.outputPdf('blob');
-        try { await dl.save({ filename: name, data: blob }); toast('نُزّل الملف: ' + name); }
-        catch (e) { if (e && e.code === 'declined') toast('أُلغي التنزيل'); else throw new Error(e && e.code ? 'رفض التنزيل (' + e.code + ')' : String(e)); }
-      } else {
-        await worker.save();
-        toast('نُزّل الملف: ' + name);
-      }
-    } catch (e) {
-      toast('تعذّر إنشاء PDF: ' + (e && e.message ? e.message : e), true);
-    } finally {
-      PDF_BUSY = false; $$('[data-out="pdf"],#pv-pdf').forEach((b) => { b.disabled = false; if (b.dataset.t) b.textContent = b.dataset.t; });
-    }
+  // حفظ PDF بمحرك الطباعة في المتصفح: نص حقيقي قابل للنسخ والبحث، والعربية متصلة ومتباعدة صحيحًا في كل المتصفحات.
+  // (الطريقة السابقة كانت ترسم الصفحة صورة، فتضيع المسافات في Safari ويُقص طرف الصفحة)
+  function exportPdf(which) {
+    toast('في نافذة الطباعة اختر «حفظ كـ PDF» (في Safari: زر PDF أسفل النافذة). اسم الملف مقترح: ' + fileName(which));
+    setTimeout(() => doPrint(which), 350);
   }
 
   // نافذة المعاينة: صفحات بمقاس A4 كما ستُطبع، مع اختيار الإجمالية أو التفصيلية أو الاثنتين
@@ -4129,7 +4067,7 @@ var qrcode = function() {
         <b class="pv-t">معاينة قبل الطباعة</b>
         <span class="seg" id="pv-which">${Object.keys(names).map((k) => `<button data-pw="${k}" class="${k === which ? 'on' : ''}">${names[k]}</button>`).join('')}</span>
         <span class="spacer"></span>
-        <button class="btn primary" id="pv-pdf">تنزيل PDF</button><button class="btn" id="pv-print">طباعة</button><button class="btn ghost" id="pv-x" aria-label="إغلاق المعاينة">✕</button>
+        <button class="btn primary" id="pv-pdf">حفظ PDF</button><button class="btn" id="pv-print">طباعة</button><button class="btn ghost" id="pv-x" aria-label="إغلاق المعاينة">✕</button>
       </div>
       <div class="pv-pages" id="pv-pages"></div>`;
     document.body.appendChild(bg); document.body.style.overflow = 'hidden';

@@ -336,6 +336,19 @@ td.ico .shape{margin:auto}
 .dcells{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
 .dcell{display:grid;gap:4px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px}
 .dcell select{min-height:36px;padding:5px 8px}
+
+/* الإدخال السريع */
+.btn.on-soft{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.qe{border:1px solid var(--line-2);border-radius:14px;background:var(--surface-2);padding:14px 16px;margin-bottom:16px}
+.qe-h{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:8px}
+.qe-shared{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.qe-t{background:#fff;border-radius:10px}
+.qe-t td{padding:6px 5px;vertical-align:middle}
+.qe-t input,.qe-t select{min-height:36px;padding:5px 8px}
+.qe-t .qe-qty{width:64px}.qe-t .qe-price{width:96px}
+.qe-t td:nth-child(5) input,.qe-t td:nth-child(6) input{width:84px}
+@media (max-width:900px){.tw table.qe-t{min-width:820px}}
+.qe-t td:nth-child(2) select{min-width:120px}.qe-t td:nth-child(3) select{min-width:170px}
 </style>
 </head>
 <body>
@@ -3831,6 +3844,7 @@ var qrcode = function() {
   function pageQuote(id) {
     if (id === 'new') { if (!can('quote.edit')) { $('#main').innerHTML = `<div class="card empty">لا تملك صلاحية إنشاء العروض.</div>`; return; } Q = blankQuote(); }
     else { const q = api('quote.get', { id }); if (!q) return; Q = q; }
+    QE = blankQE(!Q.openings.length);
     renderQuote();
   }
   const editable = () => Q.status === 'draft' && can('quote.edit');
@@ -3856,7 +3870,8 @@ var qrcode = function() {
             </div>
           </div>
           <div class="card"><div class="row" style="margin-bottom:10px"><h2 style="margin:0">الفتحات <span class="muted small">(${Q.openings.length} سطر، ${doc.totals.pieces} قطعة)</span></h2><span class="spacer"></span>
-            ${ed ? '<button class="btn primary" id="add-op">إضافة نافذة أو باب</button>' : ''}</div>
+            ${ed ? `<button class="btn ${QE && QE.open ? 'on-soft' : ''}" id="qe-toggle" aria-expanded="${!!(QE && QE.open)}">إدخال سريع لعدة فتحات</button><button class="btn primary" id="add-op">إضافة نافذة أو باب</button>` : ''}</div>
+            ${ed ? '<div id="qe"></div>' : ''}
             ${Q.openings.length ? openingTable(Q.openings, ed) : '<div class="empty">لم تُضف فتحات بعد.</div>'}
           </div>
           <div class="card"><h2>البنود المجمعة كما ستظهر في الفاتورة</h2>${linesTable(doc)}</div>
@@ -3899,7 +3914,111 @@ var qrcode = function() {
   }
   function setPath(obj, path, v) { const k = path.split('.'); let o = obj; k.slice(0, -1).forEach((p) => { o[p] = o[p] || {}; o = o[p]; }); o[k[k.length - 1]] = v; }
   function getPath(obj, path) { return path.split('.').reduce((o, p) => (o == null ? undefined : o[p]), obj); }
+  // ---------- الإدخال السريع: تُجمع الفتحات أولًا بمواصفات مشتركة، ثم تُفصَّل كل واحدة لاحقًا ----------
+  let QE = null;
+  const qeRow = () => ({ productTypeId: '', openingTypeId: '', location: '', w: '', h: '', qty: 1, price: '', manual: false });
+  function blankQE(open) {
+    return { open, shared: { categoryId: '', familyId: '', companyId: '', seriesId: '', colorId: '', glass: { config: '', appearance: '', thickness: '' } }, rows: [qeRow(), qeRow(), qeRow()] };
+  }
+  function qeLookup(r) {
+    const sh = QE.shared;
+    if (r.manual || !sh.seriesId || !r.productTypeId) return;
+    const p = api('price.lookup', { seriesId: sh.seriesId, productTypeId: r.productTypeId, openingTypeId: r.openingTypeId || '*' }, { silent: true });
+    r.price = p ? p.price : '';
+  }
+  function drawQE() {
+    const box = $('#qe'); if (!box) return;
+    if (!QE.open) { box.innerHTML = ''; return; }
+    const sh = QE.shared, { companies, series, ots } = options(sh);
+    const opt = (list, v, ph) => `<option value="">${ph || '—'}</option>` + list.map((x) => `<option value="${esc(x.id)}" ${x.id === v ? 'selected' : ''}>${esc(x.name)}${x.sub ? ' — ' + esc(x.sub) : ''}</option>`).join('');
+    const sel = (key, list, label) => `<label class="f">${label}<select data-qs="${key}">${opt(list, getPath(sh, key))}</select></label>`;
+    const pts = CAT.productTypes.filter((p) => !sh.familyId || (sh.familyId === 'fixed') === (p.id === 'fixed'));
+    const filled = QE.rows.filter((r) => r.productTypeId && Number(r.w) > 0 && Number(r.h) > 0).length;
+    box.innerHTML = `<div class="qe">
+      <div class="qe-h"><b>1. المواصفات المشتركة</b><span class="small muted">تُطبَّق على كل السطور أدناه، ويمكن تغييرها لكل فتحة لاحقًا.</span></div>
+      <div class="qe-shared">
+        ${sel('categoryId', CAT.categories.filter((c) => c.active !== false), 'الفئة')}
+        ${sel('familyId', FAMILIES, 'نوع الفتح الأساسي')}
+        ${sel('companyId', companies, 'الشركة')}
+        ${sel('seriesId', series.map((s) => ({ id: s.id, name: s.name, sub: s.depthMm ? s.depthMm + ' مم' : '' })), 'السلسلة')}
+        ${sel('colorId', CAT.colors, 'اللون')}
+        ${sel('glass.config', CAT.glass.configs, 'الزجاج')}
+        ${sel('glass.appearance', CAT.glass.appearances, 'مظهر الزجاج')}
+        <label class="f">السماكة<input type="text" list="qe-thk" data-qs="glass.thickness" value="${esc(sh.glass.thickness)}" placeholder="24 مم"><datalist id="qe-thk">${CAT.glass.thicknesses.map((t) => `<option value="${esc(t)}">`).join('')}</datalist></label>
+      </div>
+      <div class="qe-h" style="margin-top:14px"><b>2. الفتحات</b><span class="small muted">سطر لكل فتحة. Enter ينقلك للسطر التالي ويضيف سطرًا جديدًا في الآخر.</span></div>
+      <div class="tw"><table class="qe-t"><thead><tr><th>#</th><th>نوع المنتج</th><th>نوع الفتح</th><th>الموقع</th><th>العرض (م)</th><th>الارتفاع (م)</th><th>العدد</th><th>سعر المتر</th><th></th></tr></thead><tbody>
+        ${QE.rows.map((r, i) => `<tr>
+          <td class="muted">${i + 1}</td>
+          <td><select data-qr="${i}.productTypeId">${opt(pts, r.productTypeId)}</select></td>
+          <td><select data-qr="${i}.openingTypeId" ${sh.seriesId ? '' : 'disabled'}>${opt(ots, r.openingTypeId, sh.seriesId ? '—' : 'اختر السلسلة')}</select></td>
+          <td><input type="text" data-qr="${i}.location" value="${esc(r.location)}" placeholder="غرفة النوم"></td>
+          <td><input type="number" min="0" step="0.01" inputmode="decimal" data-qr="${i}.w" value="${esc(r.w)}"></td>
+          <td><input type="number" min="0" step="0.01" inputmode="decimal" data-qr="${i}.h" value="${esc(r.h)}"></td>
+          <td><input type="number" min="1" step="1" data-qr="${i}.qty" value="${esc(r.qty)}" class="qe-qty"></td>
+          <td><input type="number" min="0" step="0.01" data-qr="${i}.price" value="${esc(r.price)}" class="qe-price"></td>
+          <td><button type="button" class="btn sm ghost" data-qdel="${i}" aria-label="حذف السطر">✕</button></td></tr>`).join('')}
+      </tbody></table></div>
+      <div class="row" style="margin-top:10px"><button type="button" class="btn sm" id="qe-add-row">+ سطر</button><span class="spacer"></span>
+        <span class="small muted" id="qe-count">${filled} جاهزة للإضافة</span>
+        <button type="button" class="btn primary" id="qe-go" ${filled ? '' : 'disabled'}>إضافة الفتحات للعرض</button></div>
+    </div>`;
+    bindQE();
+  }
+  function bindQE() {
+    const box = $('#qe'); const sh = QE.shared;
+    const count = () => { const n = QE.rows.filter((r) => r.productTypeId && Number(r.w) > 0 && Number(r.h) > 0).length; $('#qe-count').textContent = n + ' جاهزة للإضافة'; $('#qe-go').disabled = !n; };
+    $$('[data-qs]', box).forEach((el) => {
+      const k = el.dataset.qs;
+      if (el.tagName !== 'SELECT') { el.oninput = () => setPath(sh, k, el.value); return; }
+      el.onchange = () => {
+        setPath(sh, k, el.value);
+        const chain = ['categoryId', 'familyId', 'companyId', 'seriesId'];
+        const i = chain.indexOf(k); if (i >= 0) chain.slice(i + 1).forEach((x) => { if (!(k === 'categoryId' && x === 'familyId')) sh[x] = ''; });
+        if (k === 'familyId') QE.rows.forEach((r) => { if (r.productTypeId && (sh.familyId === 'fixed') !== (r.productTypeId === 'fixed')) r.productTypeId = ''; });
+        const { ots } = options(sh);
+        QE.rows.forEach((r) => { if (r.openingTypeId && !ots.some((o) => o.id === r.openingTypeId)) r.openingTypeId = ''; if (ots.length === 1) r.openingTypeId = ots[0].id; qeLookup(r); });
+        drawQE();
+      };
+    });
+    $$('[data-qr]', box).forEach((el) => {
+      const [i, f] = el.dataset.qr.split('.'); const r = QE.rows[+i];
+      if (el.tagName === 'SELECT') { el.onchange = () => { r[f] = el.value; qeLookup(r); drawQE(); }; return; }
+      el.oninput = () => { r[f] = el.value; if (f === 'price') r.manual = true; count(); };
+      el.onkeydown = (e) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        if (+i === QE.rows.length - 1) {
+          const n = qeRow(); n.productTypeId = r.productTypeId; n.openingTypeId = r.openingTypeId; qeLookup(n); QE.rows.push(n); drawQE();
+        }
+        const next = $(`[data-qr="${+i + 1}.${f}"]`, $('#qe')); if (next) next.focus();
+      };
+    });
+    $$('[data-qdel]', box).forEach((b) => (b.onclick = () => { QE.rows.splice(+b.dataset.qdel, 1); if (!QE.rows.length) QE.rows.push(qeRow()); drawQE(); }));
+    $('#qe-add-row').onclick = () => { const last = QE.rows[QE.rows.length - 1] || {}; const n = qeRow(); n.productTypeId = last.productTypeId || ''; n.openingTypeId = last.openingTypeId || ''; qeLookup(n); QE.rows.push(n); drawQE(); };
+    $('#qe-go').onclick = () => {
+      const ready = QE.rows.filter((r) => r.productTypeId && Number(r.w) > 0 && Number(r.h) > 0);
+      const existing = Q.openings.slice();
+      ready.forEach((r) => {
+        const o = blankOpening();
+        Object.assign(o, { categoryId: sh.categoryId, companyId: sh.companyId, seriesId: sh.seriesId, productTypeId: r.productTypeId, openingTypeId: r.openingTypeId, colorId: sh.colorId,
+          location: r.location, qty: Math.max(1, Math.round(Number(r.qty) || 1)), pricePerM2: Number(r.price) || 0, priceSource: r.manual ? '' : (r.price ? 'list' : 'none') });
+        Object.assign(o.glass, { config: sh.glass.config, appearance: sh.glass.appearance, thickness: sh.glass.thickness });
+        o.survey = { width: Number(r.w), height: Number(r.h) };
+        o.mfg = { width: null, height: null, approved: false };
+        delete o.familyId; delete o.priceManual;
+        o.code = nextCode(o.productTypeId, existing);
+        existing.push(o); Q.openings.push(o);
+      });
+      QE.rows = QE.rows.filter((r) => !ready.includes(r)); if (!QE.rows.length) QE.rows = [qeRow(), qeRow()];
+      QE.open = false;
+      renderQuote();
+      toast(`أُضيفت ${ready.length} فتحات. اضغط «تعديل» على أي فتحة لإضافة الإكسسوارات أو السرانتي أو التصميم.`);
+    };
+  }
   function bindQuote() {
+    const qt = $('#qe-toggle'); if (qt) qt.onclick = () => { QE.open = !QE.open; renderQuote(); if (QE.open) $('#qe').scrollIntoView({ block: 'nearest' }); };
+    drawQE();
     $$('[data-q]').forEach((el) => {
       el.oninput = () => { setPath(Q, el.dataset.q, el.dataset.q === 'discount.value' ? Number(el.value) : el.value); };
       if (el.dataset.q === 'discount.value') el.onchange = () => renderQuote();

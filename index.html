@@ -2,10 +2,9 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<script>window.ALEMAD_CUSTOMER = true;</script>
 <script>document.documentElement.setAttribute("lang","ar");document.documentElement.setAttribute("dir","rtl");</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>العماد — عرض تجريبي</title>
+<title>العماد — المبيعات</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -441,6 +440,11 @@ td.ico .shape{margin:auto}
         { id: 'lift-slide', name: 'رفع وانزلاق', system: 'lift-slide' },
         { id: 'folding', name: 'قابل للطي (أكورديون)', system: 'folding' },
         { id: 'pivot', name: 'محوري', system: 'pivot' },
+        { id: 'tilt', name: 'قلاب فقط (يميل للداخل)', system: 'casement' },
+        { id: 'awning', name: 'مفصلي علوي (يفتح للخارج)', system: 'casement' },
+        { id: 'h-pivot', name: 'محوري أفقي', system: 'pivot' },
+        { id: 'tilt-slide', name: 'منزلق قلاب (PSK)', system: 'sliding' },
+        { id: 'multi-slide', name: 'منزلق ثلاثي المسارات', system: 'sliding' },
         { id: 'fixed', name: 'ثابت', system: '*' },
       ],
       colors: [
@@ -589,9 +593,9 @@ td.ico .shape{margin:auto}
   }
   // نوع الفتح الأساسي: سحاب / ثابت / مفصلي، وكل عائلة تضم أنواع الفتح التابعة لها
   const FAMILIES = [
-    { id: 'sliding', name: 'سحاب', systems: ['sliding', 'lift-slide', 'folding'], types: ['sliding', 'lift-slide', 'folding'] },
+    { id: 'sliding', name: 'سحاب', systems: ['sliding', 'lift-slide', 'folding'], types: ['sliding', 'lift-slide', 'folding', 'tilt-slide', 'multi-slide'] },
     { id: 'fixed', name: 'ثابت', systems: null, types: ['fixed'] },
-    { id: 'casement', name: 'مفصلي', systems: ['casement', 'pivot'], types: ['casement', 'tilt-turn', 'pivot'] },
+    { id: 'casement', name: 'مفصلي', systems: ['casement', 'pivot'], types: ['casement', 'tilt-turn', 'tilt', 'awning', 'pivot', 'h-pivot'] },
   ];
   function familyOf(otId) { const f = FAMILIES.find((x) => x.types.includes(otId)); return f ? f.id : ''; }
   // الاسم المركّب: «PVC مفصلي — نافذة» ثم الشركة والسلسلة ونوع الفتح واللون
@@ -1120,7 +1124,17 @@ td.ico .shape{margin:auto}
   function localStore(key, seedFn) {
     return {
       load() {
-        try { const s = localStorage.getItem(key); if (s) return JSON.parse(s); } catch (e) { /* يتابع بقاعدة جديدة */ }
+        try {
+          const s = localStorage.getItem(key);
+          if (s) {
+            const d = JSON.parse(s), fresh = seedFn();
+            (fresh.catalog ? fresh.catalog.openingTypes : fresh.openingTypes || []).forEach((x) => {
+              const list = d.catalog ? d.catalog.openingTypes : d.openingTypes;
+              if (list && !list.some((y) => y.id === x.id)) list.push(x);
+            });
+            return d;
+          }
+        } catch (e) { /* يتابع بقاعدة جديدة */ }
         const d = seedFn(); try { localStorage.setItem(key, JSON.stringify(d)); } catch (e) {}
         return d;
       },
@@ -3460,7 +3474,8 @@ var qrcode = function() {
   let seq = 0;
   const f = (n) => Math.round(n * 10) / 10;
   const DEFAULT_DIMS = { window: [1.2, 1.4], balcony: [1.6, 2.2], door: [0.9, 2.1], fixed: [1.5, 1.5] };
-  const SYSTEM_OF = { casement: 'casement', 'tilt-turn': 'tilt-turn', sliding: 'sliding', 'lift-slide': 'lift-slide', folding: 'folding', pivot: 'pivot', fixed: 'fixed' };
+  const SYSTEM_OF = { casement: 'casement', 'tilt-turn': 'tilt-turn', sliding: 'sliding', 'lift-slide': 'lift-slide', folding: 'folding', pivot: 'pivot', fixed: 'fixed',
+    tilt: 'tilt', awning: 'awning', 'h-pivot': 'h-pivot', 'tilt-slide': 'sliding', 'multi-slide': 'multi-slide' };
 
   function glassRect(x, y, w, h, app, pid) {
     const fill = app === 'frosted' ? `url(#fr${pid})` : `url(#gl${pid})`;
@@ -3545,7 +3560,12 @@ var qrcode = function() {
       }
       let r = sash(x, y, cw, ch, solid);
       const hl = Math.min(ch * 0.11, 11);
-      if (type === 'tilt') {
+      if (type === 'awning') { // مفصلات في الأعلى والمقبض في الأسفل
+        r += handle(x + cw / 2, y + ch - st * 0.55, Math.min(cw * 0.14, 11), false, HD) + pin(x + cw * 0.2, y + 1) + pin(x + cw * 0.8, y + 1);
+      } else if (type === 'h-pivot') { // محور أفقي في المنتصف
+        r += `<circle cx="${f(x + 1.5)}" cy="${f(y + ch / 2)}" r="${f(sw * 1.5)}" fill="${ACC}"/><circle cx="${f(x + cw - 1.5)}" cy="${f(y + ch / 2)}" r="${f(sw * 1.5)}" fill="${ACC}"/>`
+          + handle(x + cw / 2, y + ch - st * 0.55, Math.min(cw * 0.12, 10), false, HD);
+      } else if (type === 'tilt') {
         r += handle(x + cw / 2, y + st * 0.55, Math.min(cw * 0.14, 11), false, HD) + pin(x + cw * 0.2, y + ch - 1) + pin(x + cw * 0.8, y + ch - 1);
       } else if (type === 'pivot') {
         r += `<circle cx="${f(x + cw / 2)}" cy="${f(y + 1.5)}" r="${f(sw * 1.5)}" fill="${ACC}"/><circle cx="${f(x + cw / 2)}" cy="${f(y + ch - 1.5)}" r="${f(sw * 1.5)}" fill="${ACC}"/>`
@@ -3562,9 +3582,8 @@ var qrcode = function() {
     const bar = (x, y, bw, bh) => bevel(x, y, bw, bh, Math.min(bw, bh) * 0.3, FR, sw * 0.6);
     // التصميم: صفوف، لكل صف ارتفاع نسبي وخلايا بعروض نسبية
     let design = o.design && o.design.rows && o.design.rows.length ? o.design : null;
-    if (!design && ot !== 'sliding' && ot !== 'lift-slide' && ot !== 'folding') {
-      if (ot === 'fixed') design = { rows: [{ h: 1, cells: [{ w: 1, type: 'fixed' }] }] };
-      else if (ot === 'pivot') design = { rows: [{ h: 1, cells: [{ w: 1, type: 'pivot' }] }] };
+    if (!design && !['sliding', 'lift-slide', 'folding', 'multi-slide'].includes(ot)) {
+      if (['fixed', 'pivot', 'tilt', 'awning', 'h-pivot'].includes(ot)) design = { rows: [{ h: 1, cells: [{ w: 1, type: ot }] }] };
       else {
         const two = (pt === 'door' ? w > 1.4 : w > 1.3);
         const k = ot === 'tilt-turn' ? 'tilt-turn' : 'casement';
@@ -3592,8 +3611,8 @@ var qrcode = function() {
         yy += rh;
         if (ri < rows.length - 1) { s += bar(ix, yy, iw, B); yy += B; }
       });
-    } else if (ot === 'sliding' || ot === 'lift-slide') {
-      const n = w > 3 ? 3 : 2, pw = iw / n + iw * 0.04;
+    } else if (ot === 'sliding' || ot === 'lift-slide' || ot === 'multi-slide') {
+      const n = ot === 'multi-slide' || w > 3 ? 3 : 2, pw = iw / n + iw * 0.04;
       for (let k = 0; k < n; k++) {
         const x = Math.min(ix + (iw / n) * k, ix + iw - pw);
         s += sash(x, iy, pw, ih, false);
@@ -3662,7 +3681,8 @@ var qrcode = function() {
 
   const CELL_TYPES = [
     { id: 'fixed', name: 'ثابت' }, { id: 'casement-l', name: 'مفصلي — مفصلات يسار' }, { id: 'casement-r', name: 'مفصلي — مفصلات يمين' },
-    { id: 'tilt-turn-l', name: 'قلاب ومفصلي — يسار' }, { id: 'tilt-turn-r', name: 'قلاب ومفصلي — يمين' }, { id: 'tilt', name: 'قلاب' }, { id: 'pivot', name: 'محوري' },
+    { id: 'tilt-turn-l', name: 'قلاب ومفصلي — يسار' }, { id: 'tilt-turn-r', name: 'قلاب ومفصلي — يمين' }, { id: 'tilt', name: 'قلاب' },
+    { id: 'awning', name: 'مفصلي علوي' }, { id: 'pivot', name: 'محوري' }, { id: 'h-pivot', name: 'محوري أفقي' },
   ];
   const F_ = (w) => ({ w: w || 1, type: 'fixed' }), L_ = (w) => ({ w: w || 1, type: 'casement-l' }), R_ = (w) => ({ w: w || 1, type: 'casement-r' });
   const PRESETS = [
@@ -4156,7 +4176,7 @@ var qrcode = function() {
       if (b.dataset.out === 'preview') openPreview(w); else if (b.dataset.out === 'pdf') exportPdf(w); else doPrint(w);
     }));
   }
-  const printBtns = () => `<button class="btn primary" data-out="preview">معاينة</button><button class="btn" data-out="pdf">حفظ PDF</button><button class="btn" data-out="print">طباعة</button>`;
+  const printBtns = () => `<button class="btn primary" data-out="preview">معاينة</button><button class="btn" data-out="pdf">تنزيل PDF</button><button class="btn" data-out="print">طباعة</button>`;
   const viewNames = (kind) => (kind === 'quote' ? { summary: 'العرض الإجمالي', detail: 'العرض التفصيلي', both: 'الاثنان معًا' } : { summary: 'الفاتورة الإجمالية', detail: 'الفاتورة التفصيلية', both: 'الاثنتان معًا' });
   const docNodes = (which) => (which === 'both' ? ['.doc-summary', '.doc-detail'] : [which === 'detail' ? '.doc-detail' : '.doc-summary']).map((c) => $('.docs ' + c)).filter(Boolean);
   const fileName = (which) => PV.name + (which === 'detail' ? ' - تفصيلية' : which === 'both' ? ' - كاملة' : '');
@@ -4171,9 +4191,129 @@ var qrcode = function() {
 
   // حفظ PDF بمحرك الطباعة في المتصفح: نص حقيقي قابل للنسخ والبحث، والعربية متصلة ومتباعدة صحيحًا في كل المتصفحات.
   // (الطريقة السابقة كانت ترسم الصفحة صورة، فتضيع المسافات في Safari ويُقص طرف الصفحة)
-  function exportPdf(which) {
-    toast('في نافذة الطباعة اختر «حفظ كـ PDF» (في Safari: زر PDF أسفل النافذة). اسم الملف مقترح: ' + fileName(which));
-    setTimeout(() => doPrint(which), 350);
+  // ---------- تنزيل PDF مباشر ----------
+  // المتصفح نفسه يرسم المستند (SVG foreignObject) فتبقى العربية متصلة ومسافاتها صحيحة في Safari وChrome،
+  // ثم يُقسَّم إلى صفحات A4 دون قطع سطر أو بطاقة، ويُكتب ملف PDF بالصور، بلا مكتبات خارجية.
+  const PAGE = { w: 794, h: 1123, m: 38 }; // A4 بدقة 96 نقطة/بوصة، هامش 10 مم
+  let FONT_CSS = null;
+  const toB64 = (buf) => { const u = new Uint8Array(buf); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
+  async function fontCss() {
+    if (FONT_CSS !== null) return FONT_CSS;
+    FONT_CSS = '';
+    try {
+      const link = $$('link[rel=stylesheet]').find((l) => /fonts\.googleapis/.test(l.href)); if (!link) return '';
+      const css = await (await fetch(link.href)).text();
+      // نكتفي بالعربية واللاتينية من الخط
+      const blocks = css.split('@font-face').slice(1).map((b) => '@font-face' + b.slice(0, b.indexOf('}') + 1))
+        .filter((b) => /U\+0600|U\+0000-00FF/.test(b));
+      const out = [];
+      for (const b of blocks) {
+        const m = b.match(/url\(([^)]+)\)/); if (!m) continue;
+        const buf = await (await fetch(m[1].replace(/["']/g, ''))).arrayBuffer();
+        out.push(b.replace(m[0], `url(data:font/woff2;base64,${toB64(buf)})`));
+      }
+      FONT_CSS = out.join('\n');
+    } catch (e) { FONT_CSS = ''; }
+    return FONT_CSS;
+  }
+  const xmlText = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  function pageBreaks(host, forced) {
+    const top0 = host.getBoundingClientRect().top, H = Math.ceil(host.scrollHeight), PH = PAGE.h - 2 * PAGE.m;
+    const boxes = $$('tr, .opc, .totals, h4, .sig, .doc-head, .doc-meta, .sum-grid > div, .opc-sum, .demo-banner', host)
+      .map((el) => { const r = el.getBoundingClientRect(); return [r.top - top0, r.bottom - top0 + (el.tagName === 'H4' ? 140 : 0)]; }); // العنوان يبقى مع ما بعده
+    const cuts = []; let y = 0;
+    while (y < H - 2) {
+      let cut = Math.min(y + PH, H);
+      const f = forced.find((t) => t > y + 2 && t < cut); if (f) cut = f;
+      else if (cut < H) { let moved = true; while (moved) { moved = false; for (const [a, b] of boxes) if (a < cut && b > cut && a > y + 60) { cut = a; moved = true; } } }
+      cuts.push([y, cut]); y = cut;
+    }
+    return cuts;
+  }
+  async function renderPdf(which) {
+    const W = PAGE.w - 2 * PAGE.m, SC = 2;
+    const host = document.createElement('div');
+    host.className = 'paper pdf-host'; host.setAttribute('dir', 'rtl');
+    host.style.cssText = `position:fixed;left:-20000px;top:0;width:${W}px;background:#fff`;
+    host.innerHTML = docNodes(which).map((n) => n.outerHTML).join('');
+    document.body.appendChild(host);
+    try {
+      if (document.fonts && document.fonts.ready) await document.fonts.ready;
+      const docs = $$('.doc', host); const forced = docs.slice(1).map((d) => d.getBoundingClientRect().top - host.getBoundingClientRect().top);
+      const cuts = pageBreaks(host, forced);
+      const css = xmlText((await fontCss()) + '\n' + $$('style').map((x) => x.textContent).join('\n'));
+      const clone = host.cloneNode(true); clone.removeAttribute('style'); clone.style.width = W + 'px';
+      const inner = new XMLSerializer().serializeToString(clone);
+      const pages = [];
+      for (const [y0, y1] of cuts) {
+        const ph = Math.ceil(y1 - y0);
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${ph}"><foreignObject x="0" y="0" width="${W}" height="${ph}">`
+          + `<div xmlns="http://www.w3.org/1999/xhtml" dir="rtl" lang="ar" style="width:${W}px;height:${ph}px;overflow:hidden;background:#fff;font-family:Alexandria,system-ui,sans-serif;color:#15202b;font-size:12px;line-height:1.55"><style>${css}</style>`
+          + `<div style="margin-top:${-y0}px">${inner}</div></div></foreignObject></svg>`;
+        const img = new Image();
+        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+        await img.decode();
+        const cv = document.createElement('canvas'); cv.width = W * SC; cv.height = ph * SC;
+        const cx = cv.getContext('2d'); cx.scale(SC, SC);
+        // Safari يكمل تحميل الخطوط داخل الصورة متأخرًا: رسمتان تضمنان الخط الصحيح
+        for (let k = 0; k < 2; k++) { cx.fillStyle = '#fff'; cx.fillRect(0, 0, W, ph); cx.drawImage(img, 0, 0, W, ph); if (!k) await new Promise((r) => setTimeout(r, 60)); }
+        const b = await new Promise((r) => cv.toBlob(r, 'image/jpeg', 0.93));
+        pages.push({ jpg: new Uint8Array(await b.arrayBuffer()), pw: cv.width, ph: cv.height, cssH: ph });
+      }
+      return buildPdf(pages, W);
+    } finally { host.parentNode.removeChild(host); }
+  }
+  // كاتب PDF صغير: صفحة A4 لكل صورة JPEG
+  function buildPdf(pages, cssW) {
+    const enc = new TextEncoder(), parts = [], offs = []; let len = 0;
+    const put = (x) => { const b = typeof x === 'string' ? enc.encode(x) : x; parts.push(b); len += b.length; };
+    put('%PDF-1.4\n'); put(new Uint8Array([0x25, 0xe2, 0xe3, 0xcf, 0xd3, 0x0a]));
+    const A4W = 595.28, A4H = 841.89, M = 28.35, k = (A4W - 2 * M) / cssW;
+    const n = pages.length, total = 2 + 3 * n;
+    const obj = (i, head, stream) => { offs[i] = len; put(`${i} 0 obj\n${head}\n`); if (stream) { put('stream\n'); put(stream); put('\nendstream\n'); } put('endobj\n'); };
+    obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
+    obj(2, `<< /Type /Pages /Kids [${pages.map((_, i) => `${3 + 3 * i} 0 R`).join(' ')}] /Count ${n} >>`);
+    pages.forEach((pg, i) => {
+      const P = 3 + 3 * i, Cn = P + 1, Im = P + 2;
+      const dw = (A4W - 2 * M).toFixed(2), dh = (pg.cssH * k).toFixed(2), x = M.toFixed(2), y = (A4H - M - pg.cssH * k).toFixed(2);
+      const content = enc.encode(`q ${dw} 0 0 ${dh} ${x} ${y} cm /Im0 Do Q`);
+      obj(P, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${A4W} ${A4H}] /Resources << /XObject << /Im0 ${Im} 0 R >> >> /Contents ${Cn} 0 R >>`);
+      obj(Cn, `<< /Length ${content.length} >>`, content);
+      obj(Im, `<< /Type /XObject /Subtype /Image /Width ${pg.pw} /Height ${pg.ph} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${pg.jpg.length} >>`, pg.jpg);
+    });
+    const xref = len;
+    put(`xref\n0 ${total + 1}\n0000000000 65535 f \n`);
+    for (let i = 1; i <= total; i++) put(String(offs[i]).padStart(10, '0') + ' 00000 n \n');
+    put(`trailer\n<< /Size ${total + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+    return new Blob(parts, { type: 'application/pdf' });
+  }
+  async function claudeCap(name) {
+    try { return window.claude && window.claude.use ? await window.claude.use(name) : null; } catch (e) { return null; }
+  }
+  let PDF_BUSY = false;
+  async function exportPdf(which) {
+    if (PDF_BUSY) return;
+    if (PV.onExport && !PV.onExport()) return;
+    PDF_BUSY = true;
+    const btns = $$('[data-out="pdf"],#pv-pdf'); btns.forEach((b) => { b.disabled = true; b.dataset.t = b.textContent; b.textContent = 'جارٍ التجهيز…'; });
+    const name = fileName(which) + '.pdf';
+    try {
+      const blob = await renderPdf(which);
+      const dl = await claudeCap('downloads');
+      if (dl) { try { await dl.save({ filename: name, data: blob }); toast('نُزّل الملف: ' + name); } catch (e) { if (!(e && e.code === 'declined')) throw e; } }
+      else {
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+        document.body.appendChild(a); a.click(); a.parentNode.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+        toast('نُزّل الملف: ' + name);
+      }
+    } catch (e) {
+      // إن منع المتصفح الرسم، تبقى الطباعة متاحة: «حفظ كـ PDF» من نافذتها
+      toast('تعذّر تجهيز الملف في هذا المتصفح. ستفتح نافذة الطباعة: اختر «حفظ كـ PDF».', true);
+      const o = PV.onExport; PV.onExport = null; try { doPrint(which); } finally { PV.onExport = o; }
+    } finally {
+      PDF_BUSY = false; btns.forEach((b) => { b.disabled = false; if (b.dataset.t) b.textContent = b.dataset.t; });
+    }
   }
 
   // نافذة المعاينة: صفحات بمقاس A4 كما ستُطبع، مع اختيار الإجمالية أو التفصيلية أو الاثنتين
@@ -4186,7 +4326,7 @@ var qrcode = function() {
         <b class="pv-t">معاينة قبل الطباعة</b>
         <span class="seg" id="pv-which">${Object.keys(names).map((k) => `<button data-pw="${k}" class="${k === which ? 'on' : ''}">${names[k]}</button>`).join('')}</span>
         <span class="spacer"></span>
-        <button class="btn primary" id="pv-pdf">حفظ PDF</button><button class="btn" id="pv-print">طباعة</button><button class="btn ghost" id="pv-x" aria-label="إغلاق المعاينة">✕</button>
+        <button class="btn primary" id="pv-pdf">تنزيل PDF</button><button class="btn" id="pv-print">طباعة</button><button class="btn ghost" id="pv-x" aria-label="إغلاق المعاينة">✕</button>
       </div>
       <div class="pv-pages" id="pv-pages"></div>`;
     document.body.appendChild(bg); document.body.style.overflow = 'hidden';
@@ -4281,7 +4421,7 @@ var qrcode = function() {
     const companies = CAT.companies.filter((c) => c.kind === 'profiles' && c.categoryIds.includes(D.categoryId));
     const series = CAT.series.filter((s) => s.companyId === D.companyId && (!fam || !fam.systems || s.systems.some((x) => fam.systems.includes(x))));
     const s = byId(CAT.series, D.seriesId);
-    const ots = s ? CAT.openingTypes.filter((ot) => (ot.system === '*' || s.systems.includes(ot.system)) && (!fam || fam.types.includes(ot.id))) : [];
+    const ots = s ? CAT.openingTypes.filter((ot) => (fam ? fam.types.includes(ot.id) : true)) : [];
     return { companies, series, ots, s };
   }
   function lookupPrice() {

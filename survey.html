@@ -76,6 +76,20 @@ input[type=text]:focus,textarea:focus{outline:none;border-color:var(--accent);bo
 .saved{color:var(--muted);font-size:12px}
 pre.sum{white-space:pre-wrap;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:14px;font-family:var(--font);font-size:13px;max-height:420px;overflow:auto;margin:0}
 .toast{position:fixed;bottom:calc(18px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--brand);color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:20}
+/* التقرير: نفسه في المعاينة وفي ملف PDF، بألوان ثابتة فاتحة */
+.rp-wrap{border:1px solid var(--line);border-radius:12px;max-height:520px;overflow:auto;background:#e9edf1;padding:14px}
+.rp-sheet{background:#fff;color:#15202b;border-radius:6px;padding:22px;max-width:760px;margin:0 auto;box-shadow:0 4px 14px rgba(0,0,0,.12)}
+.rp{color:#15202b;font-size:12.5px;line-height:1.6}
+.rp-head{display:flex;gap:12px;align-items:center;border-bottom:3px solid #17212c;padding-bottom:12px;margin-bottom:6px}
+.rp-head .mark{color:#fff}
+.rp-head h2{margin:0;font-size:19px;font-weight:800;color:#17212c}
+.rp-meta{color:#66717e;font-size:12px}
+.rp-h{margin:16px 0 6px;font-size:14px;font-weight:700;color:#0a7c86;border-bottom:1px solid #dde2e8;padding-bottom:4px}
+.rp-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:12px;padding:5px 0;border-bottom:1px dashed #e3e7ec}
+.rp-q{color:#384452;font-weight:600}
+.rp-a{color:#15202b}
+.rp-no{color:#9aa3ad}
+.rp-print{color:#15202b}
 @media (max-width:760px){
   main{grid-template-columns:minmax(0,1fr)}
   nav.steps{position:static;display:flex;overflow-x:auto;gap:4px;padding-bottom:4px;scrollbar-width:none}
@@ -221,16 +235,34 @@ pre.sum{white-space:pre-wrap;background:var(--surface-2);border:1px solid var(--
     } else if (cur === S.length) {
       const txt = summary();
       v.innerHTML = `<div class="sec-h"><h1>المراجعة والإرسال</h1></div>
-        <p class="sec-d">هذه إجاباتك مرتبة. أرسلها لنا بالطريقة الأسهل لك.</p>
-        <pre class="sum" id="sum">${esc(txt)}</pre>
+        <p class="sec-d">هذا ملف إجاباتك كاملًا. أرسله لنا ملف PDF عبر واتساب.</p>
+        <div class="rp-wrap"><div class="rp-sheet">${reportHtml()}</div></div>
         <div class="nav-btns">
-          <a class="btn primary" id="wa" href="https://wa.me/?text=${encodeURIComponent(txt.slice(0, 3500))}" target="_blank" rel="noopener">إرسال عبر واتساب</a>
-          <button class="btn" type="button" id="copy">نسخ الإجابات</button>
-          <button class="btn" type="button" id="dl">تنزيل ملف</button>
+          <button class="btn primary" type="button" id="send" disabled>جارٍ تجهيز الملف…</button>
+          <button class="btn" type="button" id="dlpdf" disabled>تنزيل PDF</button>
+          <button class="btn" type="button" id="copy">نسخ النص</button>
           <span class="spacer"></span><button class="btn" type="button" data-prev>رجوع</button></div>
-        ${txt.length > 3500 ? '<p class="note" style="margin-top:12px">الإجابات طويلة على رسالة واتساب واحدة. انسخها أو نزّلها ملفًا وأرسله.</p>' : ''}`;
-      $('#copy').onclick = async () => { try { await navigator.clipboard.writeText(txt); toast('نُسخت الإجابات'); } catch (e) { const r = document.createRange(); r.selectNodeContents($('#sum')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast('حدّد النص وانسخه'); } };
-      $('#dl').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + txt], { type: 'text/plain;charset=utf-8' })); a.download = 'استبيان-العماد' + (A.name ? '-' + A.name : '') + '.txt'; document.body.appendChild(a); a.click(); a.remove(); };
+        <p class="saved" id="sendhint" style="margin-top:10px"></p>`;
+      // الملف يُجهَّز مسبقًا حتى تفتح المشاركة فور الضغط (Safari يشترط ذلك)
+      let file = null;
+      makePdf().then((blob) => {
+        file = new File([blob], pdfName(), { type: 'application/pdf' });
+        $('#send').disabled = false; $('#send').textContent = 'إرسال PDF عبر واتساب'; $('#dlpdf').disabled = false;
+      }).catch(() => { $('#send').textContent = 'تعذّر تجهيز الملف'; $('#sendhint').textContent = 'انسخ النص وأرسله في واتساب.'; });
+      const download = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 30000); };
+      $('#dlpdf').onclick = () => file && download();
+      $('#send').onclick = async () => {
+        if (!file) return;
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try { await navigator.share({ files: [file], title: 'استبيان تعديلات منظومة العماد', text: 'إجابات استبيان تعديلات منظومة العماد' }); return; }
+          catch (e) { if (e && e.name === 'AbortError') return; }
+        }
+        // الحاسوب: يُنزَّل الملف ويُفتح واتساب لإرفاقه
+        download();
+        window.open(WA + encodeURIComponent('أرسل لكم ملف إجابات استبيان منظومة العماد (مرفق PDF).'), '_blank', 'noopener');
+        $('#sendhint').textContent = 'نُزّل الملف «' + file.name + '». أرفقه في محادثة واتساب التي فُتحت: زر المرفقات ثم «مستند».';
+      };
+      $('#copy').onclick = async () => { try { await navigator.clipboard.writeText(txt); toast('نُسخ النص'); } catch (e) { toast('تعذّر النسخ في هذا المتصفح'); } };
     } else {
       const s = S[cur];
       v.innerHTML = `<div class="sec-h"><span class="sec-n">${cur + 1} من ${S.length}</span><h1>${esc(s.t)}</h1></div><p class="sec-d">${esc(s.d)}</p>
@@ -250,6 +282,98 @@ pre.sum{white-space:pre-wrap;background:var(--surface-2);border:1px solid var(--
       el.addEventListener(el.type === 'checkbox' || el.type === 'radio' ? 'change' : 'input', read);
     });
     steps(); window.scrollTo({ top: 0 });
+  }
+  // رقم واتساب الشركة: يُضاف هنا فتذهب الرسائل إليه مباشرة (فارغ = يختار المرسل المحادثة)
+  const WA_NUMBER = '';
+  const WA = 'https://wa.me/' + WA_NUMBER + '?text=';
+  const pdfName = () => 'استبيان العماد' + (A.name ? ' - ' + A.name : '') + ' - ' + new Date().toISOString().slice(0, 10) + '.pdf';
+  // التقرير الكامل: كل الأسئلة، والإجابة أو «لم يُجب»
+  function reportHtml() {
+    const val = (q) => {
+      let v = A[q.id]; if (Array.isArray(v)) v = v.join('، ');
+      if (q.type === 'scale' && v) v = v + ' من 5';
+      const o = (A[q.id + '_o'] || '').trim();
+      const t = [v, o].filter((x) => x && String(x).trim()).join(' — ');
+      return t ? esc(t) : '<span class="rp-no">لم يُجب</span>';
+    };
+    const n = S.reduce((k, x) => k + x.qs.filter(answered).length, 0), tot = S.reduce((k, x) => k + x.qs.length, 0);
+    return `<div class="rp">
+      <div class="rp-head"><div class="mark">ع</div><div><h2>استبيان تعديلات منظومة العماد</h2>
+        <div class="rp-meta">${esc(A.name || 'بدون اسم')}${A.role ? ' — ' + esc(A.role) : ''} · التاريخ ${new Date().toISOString().slice(0, 10)} · أُجيب عن ${n} من ${tot} سؤالًا</div></div></div>
+      ${S.map((x, i) => `<div class="rp-sec"><h3 class="rp-h">${i + 1}. ${esc(x.t)}</h3>
+        ${x.qs.map((q) => `<div class="rp-row"><div class="rp-q">${esc(q.t)}</div><div class="rp-a">${val(q)}</div></div>`).join('')}</div>`).join('')}
+    </div>`;
+  }
+  // PDF: المتصفح يرسم التقرير نفسه (العربية صحيحة في Safari وChrome) ثم يُقسَّم صفحات A4 بلا قطع سؤال
+  const PAGE = { w: 794, h: 1123, m: 38 };
+  const toB64 = (buf) => { const u = new Uint8Array(buf); let r = ''; for (let i = 0; i < u.length; i += 0x8000) r += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(r); };
+  let FONT = null;
+  async function fontCss() {
+    if (FONT !== null) return FONT; FONT = '';
+    try {
+      const link = $$('link[rel=stylesheet]').find((l) => /fonts\.googleapis/.test(l.href)); if (!link) return '';
+      const css = await (await fetch(link.href)).text();
+      const blocks = css.split('@font-face').slice(1).map((b) => '@font-face' + b.slice(0, b.indexOf('}') + 1)).filter((b) => /U\+0600|U\+0000-00FF/.test(b));
+      const out = [];
+      for (const b of blocks) { const m = b.match(/url\(([^)]+)\)/); if (!m) continue; const buf = await (await fetch(m[1].replace(/["']/g, ''))).arrayBuffer(); out.push(b.replace(m[0], `url(data:font/woff2;base64,${toB64(buf)})`)); }
+      FONT = out.join('\n');
+    } catch (e) { FONT = ''; }
+    return FONT;
+  }
+  async function makePdf() {
+    const W = PAGE.w - 2 * PAGE.m, PH = PAGE.h - 2 * PAGE.m, SC = 2;
+    const host = document.createElement('div');
+    host.className = 'rp-print'; host.setAttribute('dir', 'rtl');
+    host.style.cssText = `position:fixed;left:-20000px;top:0;width:${W}px;background:#fff`;
+    host.innerHTML = reportHtml(); document.body.appendChild(host);
+    try {
+      if (document.fonts && document.fonts.ready) await document.fonts.ready;
+      const top0 = host.getBoundingClientRect().top, H = Math.ceil(host.scrollHeight);
+      const boxes = $$('.rp-row, .rp-head', host).map((el) => { const r = el.getBoundingClientRect(); return [r.top - top0, r.bottom - top0]; })
+        .concat($$('.rp-h', host).map((el) => { const r = el.getBoundingClientRect(); return [r.top - top0, r.bottom - top0 + 70]; }));
+      const cuts = []; let y = 0;
+      while (y < H - 2) {
+        let cut = Math.min(y + PH, H);
+        if (cut < H) { let moved = true; while (moved) { moved = false; for (const [a, b] of boxes) if (a < cut && b > cut && a > y + 40) { cut = a; moved = true; } } }
+        cuts.push([y, cut]); y = cut;
+      }
+      const css = ((await fontCss()) + '\n' + $$('style').map((x) => x.textContent).join('\n')).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+      const clone = host.cloneNode(true); clone.removeAttribute('style'); clone.style.width = W + 'px';
+      const inner = new XMLSerializer().serializeToString(clone);
+      const pages = [];
+      for (const [y0, y1] of cuts) {
+        const ph = Math.ceil(y1 - y0);
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${ph}"><foreignObject x="0" y="0" width="${W}" height="${ph}"><div xmlns="http://www.w3.org/1999/xhtml" dir="rtl" lang="ar" data-theme="light" style="width:${W}px;height:${ph}px;overflow:hidden;background:#fff;color:#15202b;font-family:Alexandria,system-ui,sans-serif;font-size:12px;line-height:1.6"><style>${css}</style><div style="margin-top:${-y0}px">${inner}</div></div></foreignObject></svg>`;
+        const img = new Image(); img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); await img.decode();
+        const cv = document.createElement('canvas'); cv.width = W * SC; cv.height = ph * SC;
+        const cx = cv.getContext('2d'); cx.scale(SC, SC);
+        for (let k = 0; k < 2; k++) { cx.fillStyle = '#fff'; cx.fillRect(0, 0, W, ph); cx.drawImage(img, 0, 0, W, ph); if (!k) await new Promise((r) => setTimeout(r, 60)); }
+        const b = await new Promise((r) => cv.toBlob(r, 'image/jpeg', 0.92));
+        pages.push({ jpg: new Uint8Array(await b.arrayBuffer()), pw: cv.width, ph: cv.height, cssH: ph });
+      }
+      return buildPdf(pages, W);
+    } finally { host.remove(); }
+  }
+  function buildPdf(pages, cssW) {
+    const enc = new TextEncoder(), parts = [], offs = []; let len = 0;
+    const put = (x) => { const b = typeof x === 'string' ? enc.encode(x) : x; parts.push(b); len += b.length; };
+    put('%PDF-1.4\n'); put(new Uint8Array([0x25, 0xe2, 0xe3, 0xcf, 0xd3, 0x0a]));
+    const A4W = 595.28, A4H = 841.89, M = 28.35, k = (A4W - 2 * M) / cssW, n = pages.length, total = 2 + 3 * n;
+    const obj = (i, head, stream) => { offs[i] = len; put(`${i} 0 obj\n${head}\n`); if (stream) { put('stream\n'); put(stream); put('\nendstream\n'); } put('endobj\n'); };
+    obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
+    obj(2, `<< /Type /Pages /Kids [${pages.map((_, i) => `${3 + 3 * i} 0 R`).join(' ')}] /Count ${n} >>`);
+    pages.forEach((pg, i) => {
+      const P = 3 + 3 * i, dh = pg.cssH * k;
+      const content = enc.encode(`q ${(A4W - 2 * M).toFixed(2)} 0 0 ${dh.toFixed(2)} ${M.toFixed(2)} ${(A4H - M - dh).toFixed(2)} cm /Im0 Do Q`);
+      obj(P, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${A4W} ${A4H}] /Resources << /XObject << /Im0 ${P + 2} 0 R >> >> /Contents ${P + 1} 0 R >>`);
+      obj(P + 1, `<< /Length ${content.length} >>`, content);
+      obj(P + 2, `<< /Type /XObject /Subtype /Image /Width ${pg.pw} /Height ${pg.ph} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${pg.jpg.length} >>`, pg.jpg);
+    });
+    const xref = len;
+    put(`xref\n0 ${total + 1}\n0000000000 65535 f \n`);
+    for (let i = 1; i <= total; i++) put(String(offs[i]).padStart(10, '0') + ' 00000 n \n');
+    put(`trailer\n<< /Size ${total + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+    return new Blob(parts, { type: 'application/pdf' });
   }
   function summary() {
     const lines = ['استبيان تعديلات منظومة العماد', 'التاريخ: ' + new Date().toISOString().slice(0, 10), ''];

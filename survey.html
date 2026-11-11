@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>استبيان تعديلات منظومة العماد</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* نفس هوية المنظومة: ألمنيوم فاتح، جرافيت، وتركواز حافة الزجاج. خطوات متتالية من أدق تفصيل إلى أكبره */
+:root{
+  --bg:#eef1f4; --surface:#ffffff; --surface-2:#f6f8fa; --ink:#15202b; --ink-2:#384452; --muted:#66717e;
+  --line:#dde2e8; --line-2:#c9d0d8; --accent:#0a7c86; --accent-2:#086871; --accent-soft:#e2f1f2; --brand:#17212c; --edge:#46c3cb;
+  --ok:#1f7a4f; --warn:#93600e; --warn-soft:#fbf1dd;
+  --font:'Alexandria',system-ui,-apple-system,'Segoe UI',Tahoma,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f161d; --surface:#17212b; --surface-2:#1c2833; --ink:#e7edf2; --ink-2:#c3ced8; --muted:#8d9aa7;
+  --line:#26333f; --line-2:#344453; --accent:#3fb7c0; --accent-2:#5cc8d0; --accent-soft:#163a3f; --brand:#0b1117; --edge:#46c3cb;
+  --ok:#55c08a; --warn:#e2b45c; --warn-soft:#3a2e17; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f161d; --surface:#17212b; --surface-2:#1c2833; --ink:#e7edf2; --ink-2:#c3ced8; --muted:#8d9aa7;
+  --line:#26333f; --line-2:#344453; --accent:#3fb7c0; --accent-2:#5cc8d0; --accent-soft:#163a3f; --brand:#0b1117; --edge:#46c3cb;
+  --ok:#55c08a; --warn:#e2b45c; --warn-soft:#3a2e17; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.6}
+button,input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.top{background:linear-gradient(180deg,#1e2a37,#17212c);color:#fff;position:sticky;top:0;z-index:10;box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 6px 18px -10px rgba(10,18,28,.6)}
+.top-in{max-width:980px;margin:0 auto;padding-block:12px 10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;align-items:center;gap:12px}
+.mark{width:36px;height:36px;border-radius:10px;background:linear-gradient(160deg,#12939d,#0a7c86);display:grid;place-items:center;font-weight:800;font-size:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.25),inset 0 -2px 0 rgba(0,0,0,.2);flex:none}
+.top b{font-size:17px;display:block;line-height:1.3}.top small{color:#9fb0bf;font-size:12px}
+.bar{height:4px;background:rgba(255,255,255,.08)}.bar i{display:block;height:100%;width:0;background:var(--edge);transition:width .3s}
+main{max-width:980px;margin:0 auto;padding-block:22px 80px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;grid-template-columns:230px minmax(0,1fr);gap:22px;align-items:start}
+nav.steps{position:sticky;top:84px;display:grid;gap:2px}
+nav.steps button{display:flex;gap:10px;align-items:center;text-align:start;border:0;background:none;padding:8px 10px;border-radius:10px;cursor:pointer;color:var(--ink-2);font-weight:600;font-size:14px}
+nav.steps button:hover{background:var(--surface)}
+nav.steps button.on{background:var(--surface);color:var(--accent);box-shadow:0 1px 2px rgba(21,32,43,.06)}
+nav.steps i{font-style:normal;flex:none;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:12px;background:var(--line);color:var(--ink-2)}
+nav.steps button.done i{background:var(--accent);color:#fff}
+nav.steps button.on i{background:var(--accent);color:#fff}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 1px 2px rgba(21,32,43,.05),0 8px 24px -14px rgba(21,32,43,.2);min-width:0}
+.sec-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.sec-h h1{margin:0;font-size:24px;font-weight:800;line-height:1.3;text-wrap:balance}
+.sec-n{color:var(--accent);font-weight:700;font-size:14px}
+.sec-d{color:var(--muted);margin:0 0 18px;max-width:62ch}
+.q{padding-block:16px;border-top:1px solid var(--line)}
+.q:first-of-type{border-top:0;padding-top:6px}
+.q-t{font-weight:700;margin-bottom:4px}
+.q-h{color:var(--muted);font-size:13px;margin-bottom:10px;max-width:62ch}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opt{position:relative}
+.opt input{position:absolute;opacity:0;inset:0;cursor:pointer;margin:0}
+.opt span{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-2);background:var(--surface);border-radius:999px;padding:7px 14px;font-weight:600;font-size:14px;cursor:pointer;transition:border-color .15s,background-color .15s}
+.opt input:hover+span{border-color:var(--accent)}
+.opt input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.opt input:checked+span{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.scale{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.scale .opt span{width:44px;justify-content:center;padding:7px 0}
+.scale small{color:var(--muted);font-size:12px}
+input[type=text],textarea{width:100%;border:1px solid var(--line-2);border-radius:10px;padding:9px 12px;background:var(--surface);min-height:42px}
+textarea{min-height:84px;resize:vertical}
+input[type=text]:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 20%,transparent)}
+.other{margin-top:8px}
+.nav-btns{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+.btn{border:1px solid var(--line-2);background:var(--surface);border-radius:10px;padding:10px 18px;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--ink)}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent-2);border-color:var(--accent-2)}
+.spacer{flex:1}
+.intro p{max-width:62ch;margin:0 0 10px}
+.intro ul{margin:0 0 14px;padding-inline-start:20px;color:var(--ink-2)}
+.note{background:var(--warn-soft);color:var(--warn);border-radius:10px;padding:10px 14px;font-size:13px}
+.saved{color:var(--muted);font-size:12px}
+pre.sum{white-space:pre-wrap;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:14px;font-family:var(--font);font-size:13px;max-height:420px;overflow:auto;margin:0}
+.toast{position:fixed;bottom:calc(18px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--brand);color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:20}
+@media (max-width:760px){
+  main{grid-template-columns:minmax(0,1fr)}
+  nav.steps{position:static;display:flex;overflow-x:auto;gap:4px;padding-bottom:4px;scrollbar-width:none}
+  nav.steps button{white-space:nowrap;flex:none;padding:6px 10px}
+  nav.steps button span{display:none}
+  nav.steps button.on span{display:inline}
+  .card{padding:18px}
+  .sec-h h1{font-size:21px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-in"><div class="mark">ع</div><div><b>استبيان تعديلات المنظومة</b><small>العماد — منظومة المبيعات</small></div><span class="spacer"></span><span class="saved" id="saved" style="color:#9fb0bf"></span></div>
+  <div class="bar"><i id="bar"></i></div>
+</header>
+<main>
+  <nav class="steps" id="steps" aria-label="أقسام الاستبيان"></nav>
+  <section class="card" id="view" aria-live="polite"></section>
+</main>
+<script>
+(function () {
+  'use strict';
+  // الأسئلة: مرتبة من أدق تفصيل (الشكل والنصوص) إلى أكبره (أقسام جديدة في المنظومة والأولويات)
+  const S = [
+    { id: 'who', t: 'عنك وعن عملكم', d: 'لنعرف من سيستخدم المنظومة وكيف.', qs: [
+      { id: 'name', t: 'الاسم', type: 'text' },
+      { id: 'role', t: 'دورك في الشركة', type: 'one', opts: ['مالك', 'مدير', 'مدير مبيعات', 'مندوب مبيعات', 'محاسب', 'مسؤول ورشة'], other: true },
+      { id: 'users', t: 'كم شخصًا سيستخدم المنظومة؟', type: 'one', opts: ['1', '2–3', '4–10', 'أكثر من 10'] },
+      { id: 'device', t: 'على أي جهاز ستعملون غالبًا؟', type: 'many', opts: ['حاسوب مكتبي', 'حاسوب محمول', 'هاتف', 'جهاز لوحي'] },
+      { id: 'branches', t: 'هل لديكم أكثر من فرع أو معرض؟', type: 'one', opts: ['فرع واحد', 'أكثر من فرع'] },
+    ] },
+    { id: 'first', t: 'الانطباع الأول', d: 'بعد تجربة المنظومة: ما رأيك بشكل عام؟', qs: [
+      { id: 'ease', t: 'سهولة الاستخدام', type: 'scale', lo: 'صعبة', hi: 'سهلة جدًا' },
+      { id: 'look', t: 'الشكل والتصميم', type: 'scale', lo: 'ضعيف', hi: 'ممتاز' },
+      { id: 'speed', t: 'سرعة إعداد عرض سعر أو فاتورة', type: 'scale', lo: 'بطيئة', hi: 'سريعة جدًا' },
+      { id: 'liked', t: 'أكثر ما أعجبك', type: 'long' },
+      { id: 'disliked', t: 'أكثر ما أزعجك أو لم تفهمه', type: 'long' },
+    ] },
+    { id: 'looks', t: 'الشكل والنصوص', d: 'أدق التفاصيل: الخط والألوان والمصطلحات والأرقام.', qs: [
+      { id: 'fontsize', t: 'حجم الخط', type: 'one', opts: ['مناسب', 'أكبر قليلًا', 'أصغر قليلًا'] },
+      { id: 'colors', t: 'الألوان', type: 'one', opts: ['مناسبة', 'أريد ألوان شعار الشركة'], other: true, otherLabel: 'ألوان أو ملاحظات' },
+      { id: 'terms', t: 'هل تستخدمون أسماء مختلفة لبعض الأشياء؟', type: 'long', hint: 'مثلًا: «سرانتي» أو «سحاب» أو «مفصلي» أو أسماء القطاعات. اكتب الاسم في المنظومة والاسم الذي تستخدمونه.' },
+      { id: 'digits', t: 'شكل الأرقام', type: 'one', opts: ['123 (غربية)', '١٢٣ (عربية)'] },
+      { id: 'decimals', t: 'المبالغ بالدينار', type: 'one', opts: ['3 خانات عشرية (900.000)', 'خانتان (900.00)', 'بدون كسور (900)'] },
+      { id: 'date', t: 'التاريخ', type: 'one', opts: ['ميلادي', 'هجري', 'الاثنان معًا'] },
+      { id: 'logo', t: 'هل لديكم شعار نضعه في المنظومة والفواتير؟', type: 'one', opts: ['نعم، سنرسله', 'لا يوجد حاليًا'] },
+    ] },
+    { id: 'entry', t: 'إدخال الفتحات والمقاسات', d: 'كيف تأخذون المقاسات في الموقع وكيف تريدون إدخالها.', qs: [
+      { id: 'method', t: 'الطريقة المفضلة للإدخال', type: 'one', opts: ['الإدخال السريع (جدول)', 'النافذة التفصيلية', 'الاثنان حسب الحالة'] },
+      { id: 'unit', t: 'بأي وحدة تقيسون في الموقع؟', type: 'one', opts: ['متر', 'سنتيمتر', 'مليمتر'] },
+      { id: 'minrule', t: 'قاعدة الحد الأدنى (كل بُعد أقل من متر يُحسب مترًا)', type: 'one', opts: ['مناسبة كما هي', 'نستخدم حدًا أدنى مختلفًا', 'نستخدم حدًا أدنى للمساحة لا للبُعد', 'لا نستخدمها'], other: true, otherLabel: 'وضّح القاعدة عندكم' },
+      { id: 'missing', t: 'معلومات تنقص بطاقة الفتحة', type: 'many', opts: ['اتجاه الفتح (داخل/خارج)', 'جهة المفصلات', 'قضبان حماية', 'شبك (ناموسية) بأنواعه', 'عتبة', 'فك النافذة القديمة', 'التركيب', 'النقل', 'الطابق / صعوبة الوصول', 'صورة من الموقع'], other: true },
+      { id: 'design', t: 'قوالب تصميم النافذة والباب', type: 'one', opts: ['كافية', 'نحتاج قوالب إضافية'], other: true, otherLabel: 'صف القوالب التي تحتاجونها' },
+      { id: 'opening', t: 'أنواع فتح أو منتجات غير موجودة', type: 'long', hint: 'مثل: واجهات زجاجية، أبواب جرارة، مطابخ ألمنيوم، درابزين، أبواب أكورديون، شتر كهربائي…' },
+    ] },
+    { id: 'catalog', t: 'الكتالوج والتسعير', d: 'الشركات والسلاسل وطريقة حساب السعر عندكم.', qs: [
+      { id: 'companies', t: 'شركات أو سلاسل تتعاملون معها وغير موجودة', type: 'long' },
+      { id: 'pricing', t: 'كيف تحسبون السعر عادة؟', type: 'many', opts: ['بالمتر المربع', 'بالمتر الطولي للقطاعات', 'بالقطعة', 'بالوزن (كغ ألمنيوم)', 'تكلفة + هامش ربح'], other: true },
+      { id: 'pricevaries', t: 'يتغير سعر المتر حسب', type: 'many', opts: ['اللون', 'نوع الفتح', 'نوع الزجاج', 'المقاس', 'الكمية', 'العميل (تاجر/فرد)'] },
+      { id: 'cost', t: 'هل تريدون تسجيل التكلفة وهامش الربح (للمالك فقط)؟', type: 'one', opts: ['نعم', 'لا'] },
+      { id: 'updates', t: 'كم مرة تتغير الأسعار؟', type: 'one', opts: ['أسبوعيًا', 'شهريًا', 'كل بضعة أشهر', 'نادرًا'] },
+      { id: 'pricefile', t: 'هل لديكم قوائم أسعار في ملف Excel يمكن رفعها؟', type: 'one', opts: ['نعم', 'لا'] },
+    ] },
+    { id: 'parts', t: 'الزجاج والإكسسوارات والسرانتي', d: 'المواد والإضافات التي تبيعونها.', qs: [
+      { id: 'glass', t: 'أنواع الزجاج التي تبيعونها', type: 'many', opts: ['مفرد', 'دبل', 'ثلاثي', 'سيكوريت (مقسّى)', 'لامينيت (أمان)', 'عاكس', 'ملوّن / فاميه', 'منقوش', 'Low-E'], other: true },
+      { id: 'shutter', t: 'السرانتي', type: 'many', opts: ['يدوي بشريط', 'يدوي بذراع', 'كهربائي بمفتاح', 'كهربائي بريموت', 'لا نبيعه'] },
+      { id: 'shutterprice', t: 'تسعير السرانتي', type: 'one', opts: ['بالمتر المربع', 'بالمتر الطولي', 'بالقطعة + المحرك منفصل'], other: true },
+      { id: 'accessories', t: 'إكسسوارات أو ماركات تنقص القائمة', type: 'long', hint: 'مقابض، أقفال، مفصلات، آليات، ماركات (Roto، Siegenia، GU…)' },
+    ] },
+    { id: 'docs', t: 'العروض والفواتير', d: 'ما يجب أن يظهر في المستندات وطريقة التعامل مع المال.', qs: [
+      { id: 'docadd', t: 'ماذا تريدون إضافته إلى الفاتورة؟', type: 'many', opts: ['شعار الشركة', 'العنوان والهاتف', 'رقم السجل التجاري', 'الرقم الضريبي', 'الحساب المصرفي', 'شروط الضمان', 'مدة التنفيذ', 'ختم وتوقيع', 'رقم المندوب'], other: true },
+      { id: 'drawings', t: 'الرسومات في الفاتورة التفصيلية', type: 'one', opts: ['مفيدة كما هي', 'نريد مقاسات التصنيع على الرسم', 'لا نحتاجها'], other: true },
+      { id: 'deposit', t: 'نسبة العربون المعتادة', type: 'one', opts: ['30%', '50%', '70%', 'تختلف حسب العميل'], other: true },
+      { id: 'paymethods', t: 'طرق الدفع', type: 'many', opts: ['نقدًا', 'صك', 'تحويل مصرفي', 'بطاقة', 'أقساط'] },
+      { id: 'discount', t: 'الخصم', type: 'many', opts: ['نسبة', 'مبلغ ثابت', 'حسب الكمية', 'بموافقة المدير فقط'] },
+      { id: 'tax', t: 'الضريبة', type: 'one', opts: ['لا ضريبة', 'نضيف ضريبة'], other: true, otherLabel: 'النسبة' },
+      { id: 'formats', t: 'صيغ المستندات', type: 'many', opts: ['PDF', 'طباعة A4', 'طابعة إيصالات حرارية', 'إرسال عبر واتساب'] },
+      { id: 'qr', t: 'رمز QR لتحميل الفاتورة', type: 'one', opts: ['مفيد', 'غير مهم'] },
+      { id: 'doclang', t: 'لغة المستندات', type: 'one', opts: ['عربي فقط', 'عربي وإنجليزي'] },
+    ] },
+    { id: 'users', t: 'المستخدمون والصلاحيات', d: 'من يفعل ماذا داخل المنظومة.', qs: [
+      { id: 'roles', t: 'الأدوار عندكم', type: 'many', opts: ['مالك', 'مدير عام', 'مدير مبيعات', 'مندوب', 'محاسب', 'مسؤول ورشة', 'فني تركيب'], other: true },
+      { id: 'approve', t: 'من يعتمد عروض الأسعار؟', type: 'one', opts: ['المالك فقط', 'مدير المبيعات', 'أي مندوب', 'حسب قيمة العرض'] },
+      { id: 'sellerprices', t: 'هل يرى المندوب قائمة الأسعار؟', type: 'one', opts: ['نعم', 'لا، يرى السعر في العرض فقط'] },
+      { id: 'login', t: 'تسجيل الدخول', type: 'one', opts: ['اسم مستخدم وكلمة مرور', 'رقم الهاتف ورمز', 'لا يهم'] },
+    ] },
+    { id: 'big', t: 'أقسام جديدة في المنظومة', d: 'أكبر التفاصيل: ما الذي تحتاجونه بعد المبيعات؟', qs: [
+      { id: 'modules', t: 'ما الأقسام التي تحتاجونها؟', type: 'many', opts: ['أوامر تصنيع للورشة', 'قوائم قص القطاعات وتقليل الهدر', 'المخزون والمشتريات', 'مواعيد المعاينة والتركيب', 'متابعة الفنيين', 'حسابات العملاء والمستحقات', 'رسائل واتساب للعميل', 'تقارير المبيعات والأرباح', 'أداء المندوبين'], other: true },
+      { id: 'offline', t: 'هل تحتاجون العمل بدون إنترنت؟', type: 'one', opts: ['نعم، ضروري', 'أحيانًا', 'لا، الإنترنت متوفر'] },
+      { id: 'app', t: 'تطبيق هاتف للمعاينة في الموقع', type: 'one', opts: ['مهم جدًا', 'مفيد', 'غير مهم'] },
+      { id: 'other_sys', t: 'هل تستخدمون برامج أخرى نربطها بالمنظومة؟', type: 'text', hint: 'برنامج محاسبة، Excel، برنامج تصميم قطاعات…' },
+    ] },
+    { id: 'prio', t: 'الأولويات', d: 'رتّب ما نبدأ به.', qs: [
+      { id: 'p1', t: 'أهم تعديل', type: 'text' },
+      { id: 'p2', t: 'التعديل الثاني', type: 'text' },
+      { id: 'p3', t: 'التعديل الثالث', type: 'text' },
+      { id: 'when', t: 'متى تريدون البدء باستخدام المنظومة فعليًا؟', type: 'one', opts: ['خلال أسبوعين', 'خلال شهر', 'خلال 3 أشهر', 'لا يوجد موعد محدد'] },
+      { id: 'notes', t: 'ملاحظات أخرى', type: 'long' },
+    ] },
+  ];
+  const KEY = 'alemad.survey.v1';
+  let A = {}, cur = -1; // -1 = المقدمة، S.length = المراجعة والإرسال
+  try { A = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { A = {}; }
+  const $ = (s, r) => (r || document).querySelector(s), $$ = (s, r) => [...(r || document).querySelectorAll(s)];
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(A)); $('#saved').textContent = 'حُفظت إجاباتك في هذا الجهاز'; } catch (e) {} };
+  const answered = (q) => { const v = A[q.id]; return Array.isArray(v) ? v.length > 0 : !!(v && String(v).trim()) || !!(A[q.id + '_o'] || '').trim(); };
+  const secDone = (s) => s.qs.some(answered);
+  function toast(m) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
+
+  function steps() {
+    $('#steps').innerHTML = [['مقدمة', -1]].concat(S.map((s, i) => [s.t, i]), [['المراجعة والإرسال', S.length]])
+      .map(([t, i]) => `<button type="button" data-go="${i}" class="${i === cur ? 'on' : ''} ${i >= 0 && i < S.length && secDone(S[i]) ? 'done' : ''}" aria-current="${i === cur ? 'step' : 'false'}"><i>${i < 0 ? '•' : i === S.length ? '✓' : i + 1}</i><span>${esc(t)}</span></button>`).join('');
+    $$('[data-go]').forEach((b) => (b.onclick = () => go(+b.dataset.go)));
+    const total = S.reduce((n, s) => n + s.qs.length, 0), done = S.reduce((n, s) => n + s.qs.filter(answered).length, 0);
+    $('#bar').style.width = Math.round((done / total) * 100) + '%';
+  }
+  function qHtml(q) {
+    const v = A[q.id];
+    let body = '';
+    if (q.type === 'text') body = `<input type="text" id="q-${q.id}" data-q="${q.id}" value="${esc(v || '')}">`;
+    else if (q.type === 'long') body = `<textarea id="q-${q.id}" data-q="${q.id}">${esc(v || '')}</textarea>`;
+    else if (q.type === 'scale') body = `<div class="scale" role="radiogroup" aria-label="${esc(q.t)}"><small>${esc(q.lo)}</small>${[1, 2, 3, 4, 5].map((n) => `<label class="opt"><input type="radio" name="${q.id}" value="${n}" data-q="${q.id}" ${String(v) === String(n) ? 'checked' : ''}><span>${n}</span></label>`).join('')}<small>${esc(q.hi)}</small></div>`;
+    else {
+      const multi = q.type === 'many', arr = multi ? (v || []) : [v];
+      body = `<div class="opts" role="${multi ? 'group' : 'radiogroup'}" aria-label="${esc(q.t)}">${q.opts.map((o) => `<label class="opt"><input type="${multi ? 'checkbox' : 'radio'}" name="${q.id}" value="${esc(o)}" data-q="${q.id}" ${arr.includes(o) ? 'checked' : ''}><span>${esc(o)}</span></label>`).join('')}</div>`;
+      if (q.other) body += `<div class="other"><input type="text" id="q-${q.id}_o" data-q="${q.id}_o" placeholder="${esc(q.otherLabel || 'أخرى، اكتبها هنا')}" value="${esc(A[q.id + '_o'] || '')}"></div>`;
+    }
+    return `<div class="q"><div class="q-t">${esc(q.t)}</div>${q.hint ? `<div class="q-h">${esc(q.hint)}</div>` : ''}${body}</div>`;
+  }
+  function go(i) {
+    cur = Math.max(-1, Math.min(S.length, i));
+    const v = $('#view');
+    if (cur === -1) {
+      v.innerHTML = `<div class="intro"><div class="sec-h"><h1>ساعدنا نجهّز المنظومة على مقاس عملكم</h1></div>
+        <p>جرّبتم منظومة المبيعات. هذا الاستبيان يجمع كل ما تحتاجونه من تعديلات، من أصغر تفصيل في الشكل والنصوص إلى الأقسام الجديدة التي تريدونها.</p>
+        <ul><li>${S.length} أقسام قصيرة، وكل الأسئلة اختيارية.</li><li>تُحفظ إجاباتك في جهازك تلقائيًا، ويمكنك الإكمال لاحقًا.</li><li>في النهاية ترسل إجاباتك لنا عبر واتساب أو تنسخها أو تنزّلها ملفًا.</li></ul>
+        <p class="note">يستغرق نحو 10 دقائق. أجب عمّا يهمك فقط، واكتب ملاحظاتك بحرية.</p>
+        <div class="nav-btns"><button class="btn primary" type="button" id="start">ابدأ الاستبيان</button></div></div>`;
+      $('#start').onclick = () => go(0);
+    } else if (cur === S.length) {
+      const txt = summary();
+      v.innerHTML = `<div class="sec-h"><h1>المراجعة والإرسال</h1></div>
+        <p class="sec-d">هذه إجاباتك مرتبة. أرسلها لنا بالطريقة الأسهل لك.</p>
+        <pre class="sum" id="sum">${esc(txt)}</pre>
+        <div class="nav-btns">
+          <a class="btn primary" id="wa" href="https://wa.me/?text=${encodeURIComponent(txt.slice(0, 3500))}" target="_blank" rel="noopener">إرسال عبر واتساب</a>
+          <button class="btn" type="button" id="copy">نسخ الإجابات</button>
+          <button class="btn" type="button" id="dl">تنزيل ملف</button>
+          <span class="spacer"></span><button class="btn" type="button" data-prev>رجوع</button></div>
+        ${txt.length > 3500 ? '<p class="note" style="margin-top:12px">الإجابات طويلة على رسالة واتساب واحدة. انسخها أو نزّلها ملفًا وأرسله.</p>' : ''}`;
+      $('#copy').onclick = async () => { try { await navigator.clipboard.writeText(txt); toast('نُسخت الإجابات'); } catch (e) { const r = document.createRange(); r.selectNodeContents($('#sum')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast('حدّد النص وانسخه'); } };
+      $('#dl').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + txt], { type: 'text/plain;charset=utf-8' })); a.download = 'استبيان-العماد' + (A.name ? '-' + A.name : '') + '.txt'; document.body.appendChild(a); a.click(); a.remove(); };
+    } else {
+      const s = S[cur];
+      v.innerHTML = `<div class="sec-h"><span class="sec-n">${cur + 1} من ${S.length}</span><h1>${esc(s.t)}</h1></div><p class="sec-d">${esc(s.d)}</p>
+        ${s.qs.map(qHtml).join('')}
+        <div class="nav-btns">${cur > 0 ? '<button class="btn" type="button" data-prev>السابق</button>' : ''}<span class="spacer"></span><button class="btn primary" type="button" data-next>${cur === S.length - 1 ? 'مراجعة الإجابات' : 'التالي'}</button></div>`;
+    }
+    $$('[data-prev]').forEach((b) => (b.onclick = () => go(cur - 1)));
+    $$('[data-next]').forEach((b) => (b.onclick = () => go(cur + 1)));
+    $$('[data-q]', v).forEach((el) => {
+      const k = el.dataset.q;
+      const read = () => {
+        if (el.type === 'checkbox') A[k] = $$(`input[name="${k}"]:checked`, v).map((x) => x.value);
+        else if (el.type === 'radio') A[k] = el.value;
+        else A[k] = el.value;
+        save(); steps();
+      };
+      el.addEventListener(el.type === 'checkbox' || el.type === 'radio' ? 'change' : 'input', read);
+    });
+    steps(); window.scrollTo({ top: 0 });
+  }
+  function summary() {
+    const lines = ['استبيان تعديلات منظومة العماد', 'التاريخ: ' + new Date().toISOString().slice(0, 10), ''];
+    S.forEach((s, i) => {
+      const rows = s.qs.filter(answered).map((q) => {
+        let v = A[q.id]; if (Array.isArray(v)) v = v.join('، ');
+        if (q.type === 'scale' && v) v = v + ' من 5';
+        const o = (A[q.id + '_o'] || '').trim();
+        return '• ' + q.t + ': ' + [v, o].filter(Boolean).join(' — ');
+      });
+      if (rows.length) lines.push(`${i + 1}. ${s.t}`, ...rows, '');
+    });
+    if (lines.length <= 3) lines.push('لم تُجب عن أي سؤال بعد.');
+    return lines.join('\n');
+  }
+  go(Object.keys(A).length ? 0 : -1);
+})();
+</script>
+</body>
+</html>

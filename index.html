@@ -391,6 +391,81 @@ details.fold[open]>summary{margin-bottom:14px}
 @media (max-width:900px){.id-split{grid-template-columns:minmax(0,1fr)}}
 .kpi{min-width:0}
 @media (max-width:600px){.kpi b{font-size:19px}.kpi{padding:12px 14px}}
+
+/* ---------- تصميم المستند (فاتورة/عرض): يعمل في الشاشة والطباعة وPDF ---------- */
+.doc{padding:34px 34px 30px;overflow:hidden}
+.doc::before{content:"";position:absolute;top:0;inset-inline:0;height:6px;background:var(--doc-brand,var(--brand));-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.doc .doc-head{border-bottom:0;padding:8px 0 18px;margin-bottom:6px;align-items:flex-start}
+.doc .doc-brand{align-items:flex-start;gap:16px}
+.doc .doc-logo{max-height:84px;max-width:210px}
+.doc .doc-brand .brand-mark{width:64px;height:64px;font-size:30px;border-radius:14px}
+.doc .doc-co h2{font-size:24px;line-height:1.25;margin:0}
+.doc-tag{color:var(--muted);font-size:13px;margin-top:2px}
+.doc-contact{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:8px;font-size:12px;color:var(--ink-2)}
+.doc-contact span{white-space:nowrap}
+.doc .doc-title{text-align:end;min-width:170px}
+.doc .doc-title h3{font-size:28px;font-weight:800;line-height:1.1;margin:0 0 10px;letter-spacing:0}
+.doc-ref{margin:0;display:grid;gap:4px;font-size:13px}
+.doc-ref div{display:flex;justify-content:space-between;gap:14px;border-bottom:1px dashed var(--line);padding-bottom:3px}
+.doc-ref dt{color:var(--muted)} .doc-ref dd{margin:0;font-weight:700}
+.doc .doc-meta{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin:4px 0 18px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.doc .doc-meta b{font-size:14px}
+.doc table{border-collapse:separate;border-spacing:0}
+.doc thead th{background:var(--doc-brand,var(--brand));color:var(--doc-ink,#fff);font-weight:600;font-size:12px;padding:10px;border:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.doc thead th:first-child{border-start-start-radius:10px}.doc thead th:last-child{border-start-end-radius:10px}
+.doc tbody td{border-bottom:1px solid var(--line);padding:11px 10px}
+.doc tbody tr:nth-child(even) td{background:rgba(23,33,44,.025)}
+.doc tbody tr:hover td{background:inherit}
+.doc tfoot td{border-top:2px solid var(--doc-brand,var(--brand));border-bottom:0;padding-top:10px}
+.doc td .badge{background:transparent;border:0;padding:0;margin-inline-end:4px;color:var(--doc-accent,var(--accent));font-size:11px;font-weight:700}
+.doc td.ico .shape{opacity:.95}
+.doc .totals{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:6px 16px 0;margin-top:16px;overflow:hidden;max-width:340px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.doc .totals .line{border-bottom:1px solid var(--line);padding:7px 0}
+.doc .totals .line.grand{background:var(--doc-brand,var(--brand));color:var(--doc-ink,#fff);margin:6px -16px 0;padding:12px 16px;border:0;font-size:18px}
+.doc .totals .line.grand b,.doc .totals .line.grand .money span{color:inherit}
+.doc h4{border-bottom:2px solid var(--line);font-size:15px}
+.doc .sig{margin-top:46px;gap:48px}
+.doc .sig div{border-top:1.5px solid var(--ink-2);padding-top:8px;color:var(--ink-2);font-weight:600}
+.doc .doc-qr{border-radius:10px;padding:5px}
+.paper .doc{padding:0}
+.paper .doc::before{display:none}
+.paper .doc .doc-head{padding-top:0}
+/* ---------- صفحة هوية الفاتورة ---------- */
+.id-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:18px;align-items:start}
+.id-form{display:grid;gap:0}
+.id-aside{position:sticky;top:130px}
+.id-prev{background:#dde3e9;border-radius:12px;padding:10px;overflow:hidden}
+.id-paper{width:794px;background:#fff;padding:36px 38px;box-shadow:0 6px 24px rgba(10,18,28,.18);border-radius:4px}
+.id-paper .doc{border:0;box-shadow:none;padding:0;font-size:12px}
+.logo-row{display:flex;gap:16px;align-items:stretch;flex-wrap:wrap}
+.logo-drop{width:190px;height:120px;border:1.5px dashed var(--line-2);border-radius:14px;display:grid;place-items:center;text-align:center;background:var(--surface-2);cursor:pointer;padding:10px;transition:border-color .15s}
+.logo-drop:hover{border-color:var(--accent)}
+.logo-drop.disabled{pointer-events:none;opacity:.6}
+.logo-drop img{max-width:100%;max-height:100%;object-fit:contain}
+.btn.danger-text{color:var(--bad)}
+.palettes{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:14px}
+.pal{display:flex;align-items:center;gap:6px;border:1px solid var(--line-2);background:var(--surface);border-radius:10px;padding:8px 10px;cursor:pointer;font-weight:600;font-size:13px;color:var(--ink-2)}
+.pal i{width:18px;height:18px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15);flex:none}
+.pal i+i{margin-inline-start:-10px}
+.pal span{margin-inline-start:4px}
+.pal:hover{border-color:var(--accent)}
+.pal.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.swatches{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.swatch-f{display:flex;gap:12px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer}
+.swatch-f input[type=color]{width:46px;height:46px;flex:none}
+.swatch-f span{display:grid;line-height:1.35}
+.swatch-f small{color:var(--muted);font-size:11.5px}
+.fonts{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:8px}
+.font-t{display:grid;gap:2px;justify-items:start;border:1px solid var(--line-2);background:var(--surface);border-radius:12px;padding:10px 12px;cursor:pointer;color:var(--ink);text-align:start}
+.font-t b{font-size:19px;font-weight:700;line-height:1.3}
+.font-t small{font-family:'Alexandria',sans-serif;color:var(--muted);font-size:11px}
+.font-t:hover{border-color:var(--accent)}
+.font-t.on{border-color:var(--accent);background:var(--accent-soft)}
+.range-f{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;color:var(--ink-2);flex:1;min-width:220px}
+.range-f input{flex:1}
+@media (max-width:1000px){.id-split{grid-template-columns:minmax(0,1fr)}.id-aside{position:static}}
+@media (max-width:600px){.swatches{grid-template-columns:minmax(0,1fr)}.doc{padding:18px 14px}.doc .doc-title{min-width:0}.doc .doc-title h3{font-size:22px}}
+@media print{.doc::before{display:none}.doc{padding:0}}
 </style>
 </head>
 <body>
@@ -1043,7 +1118,7 @@ details.fold[open]>summary{margin-bottom:14px}
       // ----- الإعدادات والكتالوج -----
       'settings.update': { perm: 'catalog.manage', run: (u, p) => {
         const allowed = ['companyName', 'companyTagline', 'currency', 'taxRate', 'minDimension', 'shutterDefaultBasis', 'defaultTerms', 'publicUrl',
-          'logo', 'brandColor', 'accentColor', 'docFont', 'wmType', 'wmText', 'wmOpacity'];
+          'logo', 'brandColor', 'accentColor', 'docFont', 'wmType', 'wmText', 'wmOpacity', 'companyPhone', 'companyAddress', 'companyTaxId', 'companyReg'];
         if (p.logo && String(p.logo).length > 600000) fail('INVALID', 'الشعار كبير جدًا. استخدم صورة أصغر.');
         allowed.forEach((k) => { if (p[k] !== undefined) db.settings[k] = ['taxRate', 'minDimension'].includes(k) ? Number(p[k]) : p[k]; });
         audit(u, 'تعديل الإعدادات', '', JSON.stringify(p));
@@ -4821,7 +4896,7 @@ var qrcode = function() {
   function docStyle(st) {
     st = st || CAT.settings; ensureFont(st.docFont);
     const v = [];
-    if (st.brandColor) v.push('--doc-brand:' + st.brandColor);
+    if (st.brandColor) { v.push('--doc-brand:' + st.brandColor); const n = parseInt(st.brandColor.slice(1), 16); if ((0.299 * (n >> 16 & 255) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) / 255 > 0.62) v.push('--doc-ink:#15202b'); }
     if (st.accentColor) v.push('--doc-accent:' + st.accentColor);
     if (st.docFont && DOC_FONTS.includes(st.docFont)) v.push(`--doc-font:'${st.docFont}',Alexandria,system-ui,sans-serif`);
     const wm = wmBg(st); if (wm) v.push('--doc-wm:' + wm);
@@ -4830,60 +4905,81 @@ var qrcode = function() {
   const viewSettings = (p) => { const x = p.st || []; return { brandColor: x[0], accentColor: x[1], docFont: x[2], wmType: x[3] ? 'text' : 'none', wmText: x[3], wmOpacity: x[4], companyName: p.co }; };
 
   // صفحة هوية الفاتورة
+  const PALETTES = [
+    ['جرافيت وتركواز', '#17212c', '#0a7c86'], ['كحلي وذهبي', '#1c2b4a', '#b8892f'], ['أخضر زيتي', '#1f3d2b', '#5f8f3a'],
+    ['عنابي', '#5a1a2b', '#a8573a'], ['أسود ونحاسي', '#111418', '#b06a3b'], ['أزرق ملكي', '#123b7a', '#1f8fd6'],
+  ];
   function pageSettings() {
     if (!CAT) { $('#main').innerHTML = noAccess(); return; }
     const s = CAT.settings, mc = can('catalog.manage'), dis = mc ? '' : 'disabled';
-    const wt = s.wmType || 'none';
+    const wt = s.wmType || 'none', brand = s.brandColor || '#17212c', accent = s.accentColor || '#0a7c86';
+    DOC_FONTS.forEach(ensureFont);
     const today = new Date().toISOString().slice(0, 10);
     const sample = { lines: [
-      { type: 'product', code: '', description: 'PVC مفصلي — نافذة / KOMPEN / KOM 700 PrimeLine', pieces: 2, quantity: 3.36, unit: 'م²', unitPrice: 160, total: 537.6, codes: ['W-01'] },
+      { type: 'product', code: '', description: 'PVC مفصلي — نافذة / KOMPEN / KOM 700 PrimeLine / لون أبيض — زجاج دبل شفاف', pieces: 2, quantity: 3.36, unit: 'م²', unitPrice: 160, total: 537.6, codes: ['W-01'] },
+      { type: 'shutter', code: 'SHUTTER', description: 'سرانتي (ستارة معدنية) — أبيض', pieces: 2, quantity: 3.36, unit: 'م²', unitPrice: 45, total: 151.2, codes: ['W-01'] },
       { type: 'accessory', code: 'ROTO-01', description: 'مقبض Roto Line — Standard', pieces: 0, quantity: 2, unit: 'قطعة', unitPrice: 25, total: 50, codes: ['W-01'] }],
-      totals: { pieces: 2, billedArea: 3.36, subtotal: 587.6, discountAmount: 0, discount: { type: 'amount' }, taxRate: 0, tax: 0, total: 587.6 } };
-    $('#main').innerHTML = `<div class="page-head"><h1>هوية الفاتورة</h1></div>
+      totals: { pieces: 2, billedArea: 3.36, subtotal: 738.8, discountAmount: 0, discount: { type: 'amount' }, taxRate: 0, tax: 0, total: 738.8 } };
+    const field = (k, label, ph, ltr) => `<label class="f">${label}<input type="text" data-id="${k}" value="${esc(s[k] || '')}" placeholder="${esc(ph)}" ${ltr ? 'dir="ltr"' : ''} ${dis}></label>`;
+    $('#main').innerHTML = `<div class="page-head"><h1>هوية الفاتورة</h1><span class="muted small">تنطبق على الفاتورة وعرض السعر، في الشاشة والطباعة وملف PDF.</span></div>
       ${!mc ? '<div class="demo-banner">عرض فقط: التعديل لمن يملك صلاحية الكتالوج.</div>' : ''}
-      <div class="split id-split">
-        <div>
-          <div class="card"><h2>الشعار</h2>
-            <div class="row" style="gap:14px">
-              <div class="logo-box">${s.logo ? `<img src="${s.logo}" alt="الشعار">` : '<span class="muted small">لا يوجد شعار</span>'}</div>
-              <div class="grid" style="gap:8px">
-                <label class="btn ${dis ? 'disabled' : ''}" for="logo-in">${s.logo ? 'تغيير الشعار' : 'رفع الشعار'}</label>
-                <input type="file" id="logo-in" accept="image/png,image/jpeg,image/svg+xml,image/webp" class="hidden" ${dis}>
-                ${s.logo ? `<button class="btn sm ghost" id="logo-rm" ${dis}>إزالة الشعار</button>` : ''}
-                <span class="tiny muted">PNG بخلفية شفافة أفضل. تُصغَّر الصورة تلقائيًا.</span>
+      <div class="id-split">
+        <div class="id-form">
+          <section class="card"><h2>الشعار</h2>
+            <div class="logo-row">
+              <label class="logo-drop ${dis ? 'disabled' : ''}" for="logo-in">${s.logo ? `<img src="${s.logo}" alt="الشعار">` : '<span><b>اضغط لرفع الشعار</b><br><span class="tiny muted">PNG بخلفية شفافة أفضل</span></span>'}</label>
+              <input type="file" id="logo-in" accept="image/png,image/jpeg,image/svg+xml,image/webp" class="hidden" ${dis}>
+              <div class="grid" style="gap:8px;align-content:start">
+                <label class="btn" for="logo-in">${s.logo ? 'تغيير الشعار' : 'رفع الشعار'}</label>
+                ${s.logo ? `<button class="btn ghost danger-text" id="logo-rm" ${dis}>إزالة الشعار</button>` : ''}
+                <span class="tiny muted">تُصغَّر الصورة تلقائيًا لتبقى خفيفة.</span>
               </div>
             </div>
-          </div>
-          <div class="card"><h2>الألوان والخط</h2>
-            <div class="grid g3">
-              <label class="f">لون العناوين والخطوط<span class="row"><input type="color" data-id="brandColor" value="${esc(s.brandColor || '#17212c')}" ${dis}><span class="tiny muted num">${esc(s.brandColor || '#17212c')}</span></span></label>
-              <label class="f">لون التمييز<span class="row"><input type="color" data-id="accentColor" value="${esc(s.accentColor || '#0a7c86')}" ${dis}><span class="tiny muted num">${esc(s.accentColor || '#0a7c86')}</span></span></label>
-              <label class="f">خط الفاتورة<select data-id="docFont" ${dis}>${DOC_FONTS.map((f) => `<option ${f === (s.docFont || 'Alexandria') ? 'selected' : ''}>${f}</option>`).join('')}</select></label>
+          </section>
+          <section class="card"><h2>بيانات الشركة في رأس الفاتورة</h2>
+            <div class="grid g2">
+              ${field('companyName', 'اسم الشركة', 'العماد')}
+              ${field('companyTagline', 'الوصف المختصر', 'للنوافذ والأبواب')}
+              ${field('companyPhone', 'الهاتف', '0912345678', true)}
+              ${field('companyAddress', 'العنوان', 'طرابلس، طريق الشط')}
+              ${field('companyTaxId', 'الرقم الضريبي', '', true)}
+              ${field('companyReg', 'السجل التجاري', '', true)}
             </div>
-            ${s.brandColor || s.accentColor ? `<button class="btn sm ghost" id="colors-reset" style="margin-top:10px" ${dis}>إرجاع الألوان الافتراضية</button>` : ''}
-          </div>
-          <div class="card"><h2>العلامة المائية</h2>
-            <span class="seg">${[['none', 'بدون'], ['text', 'نص'], ['logo', 'الشعار']].map(([k, n]) => `<button data-wm="${k}" class="${wt === k ? 'on' : ''}" ${dis} ${k === 'logo' && !s.logo ? 'title="ارفع الشعار أولًا"' : ''}>${n}</button>`).join('')}</span>
-            <div class="grid g2" style="margin-top:12px">
-              ${wt === 'text' ? `<label class="f">النص<input type="text" data-id="wmText" value="${esc(s.wmText || s.companyName)}" ${dis}></label>` : ''}
-              ${wt !== 'none' ? `<label class="f">الوضوح <span class="num">${Number(s.wmOpacity) || 7}%</span><input type="range" min="3" max="20" step="1" data-id="wmOpacity" value="${Number(s.wmOpacity) || 7}" ${dis}></label>` : ''}
+          </section>
+          <section class="card"><h2>الألوان</h2>
+            <div class="palettes">${PALETTES.map(([n, b, a]) => `<button class="pal ${b === brand && a === accent ? 'on' : ''}" data-pal="${b}|${a}" ${dis} aria-pressed="${b === brand && a === accent}"><i style="background:${b}"></i><i style="background:${a}"></i><span>${n}</span></button>`).join('')}</div>
+            <div class="swatches">
+              <label class="swatch-f"><input type="color" data-id="brandColor" value="${esc(brand)}" ${dis}><span><b>لون الهوية</b><small class="num">${esc(brand)}</small><small>العناوين ورأس الجدول والإجمالي</small></span></label>
+              <label class="swatch-f"><input type="color" data-id="accentColor" value="${esc(accent)}" ${dis}><span><b>لون التمييز</b><small class="num">${esc(accent)}</small><small>عنوان المستند والعلامة</small></span></label>
             </div>
-            ${wt === 'logo' && !s.logo ? '<p class="small muted">ارفع الشعار أولًا لتظهر العلامة المائية.</p>' : ''}
-          </div>
+          </section>
+          <section class="card"><h2>الخط</h2>
+            <div class="fonts">${DOC_FONTS.map((f) => `<button class="font-t ${f === (s.docFont || 'Alexandria') ? 'on' : ''}" data-font="${f}" ${dis} style="font-family:'${f}',sans-serif" aria-pressed="${f === (s.docFont || 'Alexandria')}"><b>فاتورة ١٢٣</b><small>${f}</small></button>`).join('')}</div>
+          </section>
+          <section class="card"><h2>العلامة المائية</h2>
+            <div class="row" style="gap:14px;align-items:center">
+              <span class="seg">${[['none', 'بدون'], ['text', 'نص'], ['logo', 'الشعار']].map(([k, n]) => `<button data-wm="${k}" class="${wt === k ? 'on' : ''}" ${dis || (k === 'logo' && !s.logo ? 'disabled' : '')}>${n}</button>`).join('')}</span>
+              ${wt !== 'none' ? `<label class="range-f">الوضوح<input type="range" min="3" max="20" step="1" data-id="wmOpacity" value="${Number(s.wmOpacity) || 7}" ${dis}><b class="num">${Number(s.wmOpacity) || 7}%</b></label>` : ''}
+            </div>
+            ${wt === 'text' ? `<div style="margin-top:12px;max-width:360px">${field('wmText', 'نص العلامة', s.companyName)}</div>` : ''}
+            ${!s.logo ? '<p class="tiny muted" style="margin:10px 0 0">لاستخدام الشعار علامةً مائية، ارفع الشعار أولًا.</p>' : ''}
+          </section>
         </div>
-        <aside><div class="card"><h2>معاينة</h2>
-          <div class="id-prev"><div class="doc" style="${docStyle()}">${docHeader('فاتورة', 'INV-2026-0001', today, '')}
-            <div class="doc-meta"><div><span>العميل</span><b>محمد علي</b></div><div><span>الهاتف</span><b class="num">0912345678</b></div><div><span>المشروع</span><b>فيلا</b></div></div>
-            ${linesTable(sample, { noFoot: true })}${totalsBlock(sample.totals)}</div></div>
-          <p class="tiny muted">تنطبق على الفاتورة وعرض السعر، في الشاشة والطباعة وملف PDF.</p></div></aside>
+        <aside class="id-aside"><div class="card"><div class="row" style="margin-bottom:10px"><h2 style="margin:0">معاينة الفاتورة</h2><span class="spacer"></span><span class="tiny muted">مقاس A4</span></div>
+          <div class="id-prev"><div class="paper id-paper"><div class="doc doc-summary" style="${docStyle()}">${docHeader('فاتورة', 'INV-2026-0001', today, '')}${docMeta({ customer: { name: 'محمد علي', phone: '0912345678' }, project: 'فيلا قرجي', site: 'طرابلس' })}
+            ${linesTable(sample)}${totalsBlock(sample.totals)}<div class="sig"><div>توقيع العميل</div><div>ختم وتوقيع ${esc(s.companyName)}</div></div></div></div></div></div></aside>
       </div>`;
-    const set = (patch) => { if (api('settings.update', patch)) { CAT = api('catalog.get'); pageSettings(); } };
+    // المعاينة بمقاس A4 الحقيقي ثم تُصغَّر لتتسع في مكانها
+    const fit = () => { const pv = $('.id-prev'), pp = $('.id-paper'); if (!pv || !pp) return; pp.style.zoom = Math.min(1, (pv.clientWidth - 20) / 794); };
+    fit(); window.onresize = fit;
+    const set = (patch) => { if (api('settings.update', patch)) { CAT = api('catalog.get'); const y = scrollY; pageSettings(); scrollTo(0, y); } };
     $$('[data-id]').forEach((el) => {
-      if (el.type === 'range') { el.oninput = () => { el.previousElementSibling.textContent = el.value + '%'; }; el.onchange = () => set({ [el.dataset.id]: Number(el.value) }); }
+      if (el.type === 'range') { el.oninput = () => { el.nextElementSibling.textContent = el.value + '%'; }; el.onchange = () => set({ [el.dataset.id]: Number(el.value) }); }
       else el.onchange = () => set({ [el.dataset.id]: el.value });
     });
+    $$('[data-pal]').forEach((b) => (b.onclick = () => { const [bc, ac] = b.dataset.pal.split('|'); set({ brandColor: bc, accentColor: ac }); }));
+    $$('[data-font]').forEach((b) => (b.onclick = () => set({ docFont: b.dataset.font })));
     $$('[data-wm]').forEach((b) => (b.onclick = () => set({ wmType: b.dataset.wm })));
-    if ($('#colors-reset')) $('#colors-reset').onclick = () => set({ brandColor: '', accentColor: '' });
     if ($('#logo-rm')) $('#logo-rm').onclick = () => set(Object.assign({ logo: '' }, s.wmType === 'logo' ? { wmType: 'none' } : {}));
     const inp = $('#logo-in');
     if (inp) inp.onchange = () => {
@@ -4892,7 +4988,6 @@ var qrcode = function() {
       rd.onload = () => {
         const img = new Image();
         img.onload = () => {
-          // تصغير إلى 420 بكسل كحد أقصى حتى يبقى خفيفًا في الحفظ والطباعة
           const k = Math.min(1, 420 / Math.max(img.width, img.height));
           const cv = document.createElement('canvas'); cv.width = Math.round(img.width * k) || 1; cv.height = Math.round(img.height * k) || 1;
           cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
@@ -4905,17 +5000,22 @@ var qrcode = function() {
     };
   }
   function docHeader(title, no, date, qr) {
+    const st = CAT.settings;
+    const contact = [st.companyPhone && `<span>هاتف <bdi class="num">${esc(st.companyPhone)}</bdi></span>`, st.companyAddress && `<span>${esc(st.companyAddress)}</span>`,
+      st.companyTaxId && `<span>الرقم الضريبي <bdi class="num">${esc(st.companyTaxId)}</bdi></span>`, st.companyReg && `<span>السجل التجاري <bdi class="num">${esc(st.companyReg)}</bdi></span>`].filter(Boolean).join('');
     return `<div class="doc-head">
-      <div class="doc-brand">${CAT.settings.logo ? `<img class="doc-logo" src="${CAT.settings.logo}" alt="${esc(CAT.settings.companyName)}">` : '<div class="brand-mark">ع</div>'}<div><h2>${esc(CAT.settings.companyName)}</h2><div class="muted small">${esc(CAT.settings.companyTagline)}</div></div></div>
-      <div class="doc-id"><div class="doc-title"><h3>${title}</h3><div class="num doc-no">${esc(no)}</div><div class="small muted">التاريخ: <span class="num">${esc(date)}</span></div></div>
+      <div class="doc-brand">${st.logo ? `<img class="doc-logo" src="${st.logo}" alt="${esc(st.companyName)}">` : '<div class="brand-mark">ع</div>'}
+        <div class="doc-co"><h2>${esc(st.companyName)}</h2><div class="doc-tag">${esc(st.companyTagline)}</div>${contact ? `<div class="doc-contact">${contact}</div>` : ''}</div></div>
+      <div class="doc-id"><div class="doc-title"><h3>${title}</h3>
+          <dl class="doc-ref"><div><dt>الرقم</dt><dd class="num">${esc(no)}</dd></div><div><dt>التاريخ</dt><dd class="num">${esc(date)}</dd></div></dl></div>
         ${qr ? `<div class="doc-qr" data-inv="1" title="امسح الرمز لتحميل الفاتورة">${qr}</div>` : ''}</div>
     </div>`;
   }
   function docMeta(x) {
     return `<div class="doc-meta">
-      <div><span>العميل</span><b>${esc(x.customer && x.customer.name)}</b></div>
-      <div><span>الهاتف</span><b class="num">${esc(x.customer && x.customer.phone)}</b></div>
-      <div><span>المشروع / الموقع</span><b>${esc(x.project)}${x.site ? ' — ' + esc(x.site) : ''}</b></div>
+      <div><span>العميل</span><b>${esc((x.customer && x.customer.name) || '—')}</b></div>
+      <div><span>الهاتف</span><b class="num">${esc((x.customer && x.customer.phone) || '—')}</b></div>
+      <div><span>المشروع / الموقع</span><b>${esc(x.project || '—')}${x.site ? ' — ' + esc(x.site) : ''}</b></div>
     </div>`;
   }
   function totalsBlock(t) {

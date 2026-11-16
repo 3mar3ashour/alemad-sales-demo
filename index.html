@@ -353,6 +353,44 @@ td.ico .shape{margin:auto}
 .doc-qr a{display:block;line-height:0}
 .qr-cap{font-size:10px;line-height:1.3;text-align:center;color:var(--muted);margin-top:3px;white-space:nowrap}
 body.viewer .nav,body.viewer .who{display:none}
+
+/* هوية الفاتورة: متغيرات على كل مستند */
+.doc{font-family:var(--doc-font,inherit);position:relative;z-index:0;background-image:var(--doc-wm,none);background-repeat:repeat-y;background-position:center top;background-size:100% auto;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.doc .doc-head{border-bottom-color:var(--doc-brand,var(--brand))}
+.doc .doc-brand h2,.doc h4{color:var(--doc-brand,var(--brand))}
+.doc .totals .line.grand{color:var(--doc-brand,var(--brand));border-bottom-color:var(--doc-brand,var(--brand))}
+.doc .doc-title h3{color:var(--doc-accent,var(--accent))}
+.doc .brand-mark{background:var(--doc-accent,var(--accent))}
+.doc .op-code{background:var(--doc-brand,var(--brand))}
+.doc-logo{display:block;max-height:68px;max-width:190px;object-fit:contain}
+.logo-box{width:150px;height:96px;border:1px dashed var(--line-2);border-radius:12px;display:grid;place-items:center;background:var(--surface-2);padding:8px}
+.logo-box img{max-width:100%;max-height:100%;object-fit:contain}
+label.btn{cursor:pointer}
+label.btn.disabled{opacity:.5;pointer-events:none}
+.id-split{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr)}
+.id-prev{border:1px solid var(--line);border-radius:12px;background:#e9edf1;padding:12px;overflow:hidden}
+.id-prev .doc{padding:18px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.1)}
+.id-prev .doc-brand h2{font-size:20px}.id-prev .doc-title h3{font-size:17px}
+.id-prev table{font-size:11px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+/* أقسام الإعدادات */
+.subnav:empty{display:none}
+.subnav{max-width:1240px;margin:0 auto;padding:20px 20px 0}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--line-2);padding-bottom:0}
+.tabs a{padding:8px 14px;border-radius:10px 10px 0 0;text-decoration:none;color:var(--ink-2);font-weight:600;border-bottom:3px solid transparent;margin-bottom:-1px}
+.tabs a:hover{color:var(--accent)}
+.tabs a.on{color:var(--accent);border-bottom-color:var(--accent);background:var(--surface)}
+/* أقسام مطوية في شاشة الفاتورة */
+details.fold>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px}
+details.fold>summary::-webkit-details-marker{display:none}
+details.fold>summary h2{margin:0}
+details.fold>summary::after{content:"";margin-inline-start:auto;width:9px;height:9px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);opacity:.5;transition:transform .15s}
+details.fold[open]>summary::after{transform:rotate(225deg)}
+details.fold[open]>summary{margin-bottom:14px}
+.btn.big{padding:12px 18px;font-size:16px}
+@media (max-width:900px){.id-split{grid-template-columns:minmax(0,1fr)}}
+.kpi{min-width:0}
+@media (max-width:600px){.kpi b{font-size:19px}.kpi{padding:12px 14px}}
 </style>
 </head>
 <body>
@@ -1004,7 +1042,9 @@ body.viewer .nav,body.viewer .who{display:none}
 
       // ----- الإعدادات والكتالوج -----
       'settings.update': { perm: 'catalog.manage', run: (u, p) => {
-        const allowed = ['companyName', 'companyTagline', 'currency', 'taxRate', 'minDimension', 'shutterDefaultBasis', 'defaultTerms', 'publicUrl'];
+        const allowed = ['companyName', 'companyTagline', 'currency', 'taxRate', 'minDimension', 'shutterDefaultBasis', 'defaultTerms', 'publicUrl',
+          'logo', 'brandColor', 'accentColor', 'docFont', 'wmType', 'wmText', 'wmOpacity'];
+        if (p.logo && String(p.logo).length > 600000) fail('INVALID', 'الشعار كبير جدًا. استخدم صورة أصغر.');
         allowed.forEach((k) => { if (p[k] !== undefined) db.settings[k] = ['taxRate', 'minDimension'].includes(k) ? Number(p[k]) : p[k]; });
         audit(u, 'تعديل الإعدادات', '', JSON.stringify(p));
         return clone(db.settings);
@@ -3799,10 +3839,12 @@ var qrcode = function() {
   // ---------- الإطار ----------
   // وضع العرض للعميل: حساب مدير مبيعات، بلا كتالوج أو أسعار أو صلاحيات أو تدقيق أو تبديل مستخدم
   const CUSTOMER = !!window.ALEMAD_CUSTOMER;
-  const NAV = [
-    ['#/quotes', 'العروض', 'sales.view'], ['#/invoices', 'الفواتير', 'sales.view'],
-    ['#/catalog', 'الكتالوج والأسعار', null], ['#/users', 'الصلاحيات', null], ['#/audit', 'سجل التدقيق', 'audit.view'],
-  ];
+  const NAV = [['#/invoices', 'الفواتير', 'sales.view'], ['#/quotes', 'العروض', 'sales.view'], ['#/settings', 'الإعدادات', null]];
+  const SETTINGS_PAGES = ['settings', 'catalog', 'users', 'audit'];
+  function settingsTabs(active) {
+    const t = [['#/settings', 'هوية الفاتورة'], ['#/catalog', 'الكتالوج والأسعار'], ['#/users', 'الصلاحيات'], ['#/audit', 'سجل التدقيق', 'audit.view']];
+    return `<nav class="tabs" aria-label="أقسام الإعدادات">${t.filter((x) => !x[2] || can(x[2])).map((x) => `<a href="${x[0]}" class="${x[0] === active ? 'on' : ''}">${x[1]}</a>`).join('')}</nav>`;
+  }
   function frame() {
     const users = api('users.list', {}) || [];
     document.body.innerHTML = `
@@ -3813,6 +3855,7 @@ var qrcode = function() {
         </div>
       </div>
       <nav class="nav" aria-label="الأقسام"><div class="nav-in" id="nav"></div></nav></header>
+      <div id="subnav" class="subnav"></div>
       <main id="main"></main>`;
     $('#who').onchange = (e) => { userId = e.target.value; lsSet('alemad.user', userId); route(); };
     if (CUSTOMER) { const w = $('.who'); if (w) w.parentNode.removeChild(w); }
@@ -3821,24 +3864,25 @@ var qrcode = function() {
     if (!canStore) $('.topbar').insertAdjacentHTML('afterend', '<div class="demo-banner" style="margin:0;border-radius:0;text-align:center">هذا العرض لا يسمح بحفظ البيانات. افتح الملف في Chrome أو Safari مباشرة ليُحفظ عملك.</div>');
   }
   function setNav(active) {
-    $('#nav').innerHTML = NAV.filter((n) => (!n[2] || can(n[2])) && !(CUSTOMER && ['#/catalog', '#/users', '#/audit'].includes(n[0]))).map((n) => `<a href="${n[0]}" class="${active === n[0] ? 'on' : ''}">${n[1]}</a>`).join('');
+    $('#nav').innerHTML = NAV.filter((n) => (!n[2] || can(n[2])) && !(CUSTOMER && n[0] === '#/settings')).map((n) => `<a href="${n[0]}" class="${active === n[0] ? 'on' : ''}">${n[1]}</a>`).join('');
   }
   function route() {
     LOCKED.clear();
     $$('.modal-bg,.pv-bg').forEach((el) => el.parentNode.removeChild(el)); // لا تبقى نافذة أو معاينة مفتوحة بعد الانتقال
     document.body.style.overflow = '';
     loadSession();
-    const h = location.hash || '#/quotes';
+    const h = location.hash || '#/invoices';
     const [, page, id, sub] = h.split('/');
-    if (CUSTOMER && ['catalog', 'users', 'audit'].includes(page)) { location.hash = '#/quotes'; return; }
+    if (CUSTOMER && SETTINGS_PAGES.includes(page)) { location.hash = '#/invoices'; return; }
+    $('#subnav').innerHTML = SETTINGS_PAGES.includes(page) ? settingsTabs('#/' + page) : '';
     const main = $('#main');
     window.scrollTo(0, 0);
     document.body.classList.toggle('viewer', page === 'v');
     if (page === 'v') { setNav(''); pageView(h.slice(4)); return; }
     if (!CAT && page !== 'users' && page !== 'catalog') { setNav(''); main.innerHTML = noAccess(); return; }
-    const map = { quotes: pageQuotes, quote: () => (sub === 'print' ? pageQuotePrint(id) : pageQuote(id)), invoices: pageInvoices, invoice: () => pageInvoice(id), catalog: pageCatalog, users: pageUsers, audit: pageAudit };
-    setNav('#/' + (page === 'quote' ? 'quotes' : page === 'invoice' ? 'invoices' : page));
-    (map[page] || pageQuotes)(id);
+    const map = { quotes: pageQuotes, quote: () => (sub === 'print' ? pageQuotePrint(id) : pageQuote(id)), invoices: pageInvoices, invoice: () => pageInvoice(id), catalog: pageCatalog, users: pageUsers, audit: pageAudit, settings: pageSettings };
+    setNav('#/' + (page === 'quote' ? 'quotes' : page === 'invoice' ? 'invoices' : SETTINGS_PAGES.includes(page) ? 'settings' : page));
+    (map[page] || pageInvoices)(id);
   }
   const noAccess = () => `<div class="card empty">لا تملك صلاحية عرض المبيعات. اطلبها من مالك النظام أو مدير النظام.</div>`;
 
@@ -3901,13 +3945,13 @@ var qrcode = function() {
             ${ed ? '<div id="qe"></div>' : ''}
             ${Q.openings.length ? openingTable(Q.openings, ed) : '<div class="empty">لم تُضف فتحات بعد.</div>'}
           </div>
-          <div class="card"><h2>البنود المجمعة كما ستظهر في الفاتورة</h2>${linesTable(doc)}</div>
-          <div class="card"><h2>الشروط والملاحظات</h2>
+          <details class="card fold"><summary><h2>معاينة بنود الفاتورة</h2><span class="small muted">${doc.lines.length} بند</span></summary>${linesTable(doc)}</details>
+          <details class="card fold"><summary><h2>الشروط والملاحظات</h2><span class="small muted">${Q.notes ? 'فيها ملاحظات' : 'الشروط الافتراضية'}</span></summary>
             <div class="grid g2">
               <label class="f">الشروط<textarea data-q="terms" ${ro}>${esc(Q.terms)}</textarea></label>
               <label class="f">ملاحظات<textarea data-q="notes" ${ro}>${esc(Q.notes)}</textarea></label>
             </div>
-          </div>
+          </details>
         </div>
         <aside>
           <div class="card calc"><h2>الإجماليات</h2>
@@ -3924,8 +3968,9 @@ var qrcode = function() {
             <div class="line"><span>الإجمالي</span><span class="big">${fmc(doc.totals.total)}</span></div>
             ${errs.length && Q.openings.length ? `<div class="err-list" style="margin-top:10px"><b>قبل الاعتماد:</b><ul>${errs.map((e) => `<li>${esc(e)}</li>`).join('')}</ul></div>` : ''}
             <div class="grid" style="margin-top:12px">
+              ${ed && can('quote.approve') && can('invoice.issue') ? `<button class="btn primary big" id="q-oneshot" data-req="${uid()}" ${errs.length || !Q.openings.length ? 'disabled' : ''}>إصدار الفاتورة</button>` : ''}
               ${ed ? '<button class="btn dark" id="q-save">حفظ المسودة</button>' : ''}
-              ${ed && can('quote.approve') ? `<button class="btn primary" id="q-approve" ${errs.length || !Q.openings.length ? 'disabled' : ''}>اعتماد العرض</button>` : ''}
+              ${ed && can('quote.approve') ? `<button class="btn ${can('invoice.issue') ? 'ghost' : 'primary'}" id="q-approve" ${errs.length || !Q.openings.length ? 'disabled' : ''}>${can('invoice.issue') ? 'اعتماد كعرض سعر فقط' : 'اعتماد العرض'}</button>` : ''}
               ${Q.status === 'approved' && can('invoice.issue') ? `<button class="btn primary" id="q-issue" data-req="${uid()}">إصدار الفاتورة</button>` : ''}
               ${Q.status === 'approved' && can('quote.edit') ? '<button class="btn" id="q-revise">نسخة معدّلة (تحتاج اعتمادًا جديدًا)</button>' : ''}
               ${Q.status === 'invoiced' ? `<a class="btn" href="#/invoice/${Q.invoiceId}">فتح الفاتورة</a>` : ''}
@@ -3945,7 +3990,10 @@ var qrcode = function() {
   let QE = null;
   const qeRow = () => ({ productTypeId: '', openingTypeId: '', location: '', w: '', h: '', qty: 1, price: '', manual: false });
   function blankQE(open) {
-    return { open, shared: { categoryId: '', familyId: '', companyId: '', seriesId: '', colorId: '', glass: { config: '', appearance: '', thickness: '' } }, rows: [qeRow(), qeRow(), qeRow()] };
+    // آخر مواصفات مشتركة استُخدمت تُملأ تلقائيًا
+    let last = null; try { last = JSON.parse(lsGet('alemad.qe.shared') || 'null'); } catch (e) { last = null; }
+    const shared = Object.assign({ categoryId: '', familyId: '', companyId: '', seriesId: '', colorId: '', glass: { config: '', appearance: '', thickness: '' } }, last || {});
+    return { open, shared, rows: [qeRow(), qeRow(), qeRow()] };
   }
   function qeLookup(r) {
     const sh = QE.shared;
@@ -4039,6 +4087,7 @@ var qrcode = function() {
       });
       QE.rows = QE.rows.filter((r) => !ready.includes(r)); if (!QE.rows.length) QE.rows = [qeRow(), qeRow()];
       QE.open = false;
+      lsSet('alemad.qe.shared', JSON.stringify(sh));
       renderQuote();
       toast(`أُضيفت ${ready.length} فتحات. اضغط «تعديل» على أي فتحة لإضافة الإكسسوارات أو السرانتي أو التصميم.`);
     };
@@ -4062,6 +4111,17 @@ var qrcode = function() {
     if ($('#q-save')) $('#q-save').onclick = () => { if (save()) { toast('حُفظت المسودة'); renderQuote(); } };
     if ($('#q-approve')) $('#q-approve').onclick = () => { if (!save()) return; const r = api('quote.approve', { id: Q.id }); if (r) { Q = r; toast('اعتُمد العرض'); renderQuote(); } };
     if ($('#q-revise')) $('#q-revise').onclick = () => { if (!confirm('إنشاء نسخة معدّلة؟ ستعود مسودة وتحتاج اعتمادًا جديدًا، والنسخة الحالية تبقى في السجل.')) return; const r = api('quote.revise', { id: Q.id }); if (r) { Q = r; renderQuote(); } };
+    // إصدار بخطوة واحدة: حفظ ثم اعتماد ثم إصدار، وكل خطوة تُسجَّل في التدقيق كما هي
+    const one = $('#q-oneshot');
+    if (one) one.onclick = () => {
+      if (one.disabled) return; one.disabled = true; one.textContent = 'جارٍ الإصدار…';
+      const back = () => { one.disabled = false; one.textContent = 'إصدار الفاتورة'; };
+      if (!save()) return back();
+      const a = api('quote.approve', { id: Q.id }); if (!a) return back();
+      Q = a;
+      const r = api('invoice.issue', { quoteId: Q.id, requestId: 'issue-' + one.dataset.req });
+      if (r) { toast('صدرت الفاتورة'); location.hash = '#/invoice/' + r.invoiceId; } else renderQuote();
+    };
     const issue = $('#q-issue');
     if (issue) issue.onclick = () => {
       if (issue.disabled) return; issue.disabled = true; issue.textContent = 'جارٍ الإصدار…';
@@ -4202,14 +4262,16 @@ var qrcode = function() {
   // المتصفح نفسه يرسم المستند (SVG foreignObject) فتبقى العربية متصلة ومسافاتها صحيحة في Safari وChrome،
   // ثم يُقسَّم إلى صفحات A4 دون قطع سطر أو بطاقة، ويُكتب ملف PDF بالصور، بلا مكتبات خارجية.
   const PAGE = { w: 794, h: 1123, m: 38 }; // A4 بدقة 96 نقطة/بوصة، هامش 10 مم
-  let FONT_CSS = null;
+  let FONT_CSS = null, FONT_KEY = '';
   const toB64 = (buf) => { const u = new Uint8Array(buf); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
   async function fontCss() {
-    if (FONT_CSS !== null) return FONT_CSS;
-    FONT_CSS = '';
+    // تُعاد قراءة الخطوط إذا تغيّر خط الفاتورة
+    const key = $$('link[rel=stylesheet]').filter((l) => /fonts\.googleapis/.test(l.href)).map((l) => l.href).join('|');
+    if (FONT_CSS !== null && FONT_KEY === key) return FONT_CSS;
+    FONT_KEY = key; FONT_CSS = '';
     try {
-      const link = $$('link[rel=stylesheet]').find((l) => /fonts\.googleapis/.test(l.href)); if (!link) return '';
-      const css = await (await fetch(link.href)).text();
+      const links = $$('link[rel=stylesheet]').filter((l) => /fonts\.googleapis/.test(l.href)); if (!links.length) return '';
+      let css = ''; for (const l of links) css += await (await fetch(l.href)).text();
       // نكتفي بالعربية واللاتينية من الخط
       const blocks = css.split('@font-face').slice(1).map((b) => '@font-face' + b.slice(0, b.indexOf('}') + 1))
         .filter((b) => /U\+0600|U\+0000-00FF/.test(b));
@@ -4394,6 +4456,8 @@ var qrcode = function() {
     const p = { v: 1, co: CAT.settings.companyName, tg: CAT.settings.companyTagline, cur: cur(), n: inv.no, d: inv.date, q: inv.quoteNo + ' / ن' + inv.quoteVersion,
       c: [(inv.customer && inv.customer.name) || '', (inv.customer && inv.customer.phone) || ''], p: [inv.project || '', inv.site || ''],
       t: [t.subtotal, t.discountAmount || 0, t.taxRate, t.tax, t.total, t.pieces, t.billedArea] };
+    const st = CAT.settings;
+    p.st = [st.brandColor || '', st.accentColor || '', st.docFont || '', st.wmType === 'text' ? (st.wmText || st.companyName || '') : '', Number(st.wmOpacity) || 0];
     if (withLines) p.l = inv.doc.lines.map((l) => [l.type[0], l.code || '', l.description, l.pieces || 0, l.quantity, l.unit, l.unitPrice, l.total, l.codes]);
     return p;
   }
@@ -4424,7 +4488,7 @@ var qrcode = function() {
     const money = (x) => `<span class="money"><span class="num">${Number(x || 0).toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</span><span>${esc(p.cur)}</span></span>`;
     main.innerHTML = `
       <div class="page-head no-print"><h1>الفاتورة ${esc(p.n)}</h1><div class="actions"><button class="btn primary" data-out="pdf">تنزيل PDF</button><button class="btn" data-out="print">طباعة</button></div></div>
-      <div class="docs" data-show="summary"><div class="doc doc-summary">
+      <div class="docs" data-show="summary"><div class="doc doc-summary" style="${docStyle(viewSettings(p))}">
         <div class="doc-head"><div class="doc-brand"><div class="brand-mark">ع</div><div><h2>${esc(p.co)}</h2><div class="muted small">${esc(p.tg)}</div></div></div>
           <div class="doc-id"><div class="doc-title"><h3>فاتورة</h3><div class="num doc-no">${esc(p.n)}</div><div class="small muted">التاريخ: <span class="num">${esc(p.d)}</span></div></div></div></div>
         <div class="doc-meta"><div><span>العميل</span><b>${esc(p.c[0])}</b></div><div><span>الهاتف</span><b class="num">${esc(p.c[1])}</b></div><div><span>المشروع / الموقع</span><b>${esc(p.p[0])}${p.p[1] ? ' — ' + esc(p.p[1]) : ''}</b></div></div>
@@ -4730,9 +4794,119 @@ var qrcode = function() {
   }
 
   // ---------- مستند الطباعة ----------
+  // ---------- هوية الفاتورة: الألوان والخط والعلامة المائية ----------
+  const DOC_FONTS = ['Alexandria', 'Tajawal', 'Cairo', 'IBM Plex Sans Arabic', 'Noto Kufi Arabic', 'Readex Pro', 'Almarai'];
+  function ensureFont(name) {
+    if (!name || name === 'Alexandria' || !DOC_FONTS.includes(name)) return;
+    const id = 'docfont-' + name.replace(/\s+/g, '-');
+    if (document.getElementById(id)) return;
+    const l = document.createElement('link'); l.id = id; l.rel = 'stylesheet';
+    l.href = 'https://fonts.googleapis.com/css2?family=' + name.replace(/ /g, '+') + ':wght@400;500;700;800&display=swap';
+    document.head.appendChild(l);
+  }
+  const xmlEsc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  function wmBg(st) {
+    const type = st.wmType || 'none'; if (type === 'none') return '';
+    const op = Math.min(0.3, Math.max(0.02, (Number(st.wmOpacity) || 7) / 100)), col = st.brandColor || '#17212c', W = 718, H = 1047;
+    let inner = '';
+    if (type === 'logo' && st.logo) inner = `<image href="${st.logo}" x="${W * 0.2}" y="${H / 2 - W * 0.3}" width="${W * 0.6}" height="${W * 0.6}" preserveAspectRatio="xMidYMid meet" opacity="${op}"/>`;
+    else {
+      const t = String(st.wmText || st.companyName || '').trim(); if (!t) return '';
+      inner = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle" dominant-baseline="middle" font-family="Alexandria, Tajawal, Arial, sans-serif" font-weight="800" font-size="${Math.round(Math.min(130, 1100 / Math.max(4, t.length)))}" fill="${col}" fill-opacity="${op}" transform="rotate(-30 ${W / 2} ${H / 2})">${xmlEsc(t)}</text>`;
+    }
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${inner}</svg>`;
+    return 'url(data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg).replace(/\(/g, '%28').replace(/\)/g, '%29').replace(/'/g, '%27') + ')';
+  }
+  // متغيرات CSS على كل مستند، فتنتقل معه إلى الطباعة وملف PDF
+  function docStyle(st) {
+    st = st || CAT.settings; ensureFont(st.docFont);
+    const v = [];
+    if (st.brandColor) v.push('--doc-brand:' + st.brandColor);
+    if (st.accentColor) v.push('--doc-accent:' + st.accentColor);
+    if (st.docFont && DOC_FONTS.includes(st.docFont)) v.push(`--doc-font:'${st.docFont}',Alexandria,system-ui,sans-serif`);
+    const wm = wmBg(st); if (wm) v.push('--doc-wm:' + wm);
+    return v.join(';');
+  }
+  const viewSettings = (p) => { const x = p.st || []; return { brandColor: x[0], accentColor: x[1], docFont: x[2], wmType: x[3] ? 'text' : 'none', wmText: x[3], wmOpacity: x[4], companyName: p.co }; };
+
+  // صفحة هوية الفاتورة
+  function pageSettings() {
+    if (!CAT) { $('#main').innerHTML = noAccess(); return; }
+    const s = CAT.settings, mc = can('catalog.manage'), dis = mc ? '' : 'disabled';
+    const wt = s.wmType || 'none';
+    const today = new Date().toISOString().slice(0, 10);
+    const sample = { lines: [
+      { type: 'product', code: '', description: 'PVC مفصلي — نافذة / KOMPEN / KOM 700 PrimeLine', pieces: 2, quantity: 3.36, unit: 'م²', unitPrice: 160, total: 537.6, codes: ['W-01'] },
+      { type: 'accessory', code: 'ROTO-01', description: 'مقبض Roto Line — Standard', pieces: 0, quantity: 2, unit: 'قطعة', unitPrice: 25, total: 50, codes: ['W-01'] }],
+      totals: { pieces: 2, billedArea: 3.36, subtotal: 587.6, discountAmount: 0, discount: { type: 'amount' }, taxRate: 0, tax: 0, total: 587.6 } };
+    $('#main').innerHTML = `<div class="page-head"><h1>هوية الفاتورة</h1></div>
+      ${!mc ? '<div class="demo-banner">عرض فقط: التعديل لمن يملك صلاحية الكتالوج.</div>' : ''}
+      <div class="split id-split">
+        <div>
+          <div class="card"><h2>الشعار</h2>
+            <div class="row" style="gap:14px">
+              <div class="logo-box">${s.logo ? `<img src="${s.logo}" alt="الشعار">` : '<span class="muted small">لا يوجد شعار</span>'}</div>
+              <div class="grid" style="gap:8px">
+                <label class="btn ${dis ? 'disabled' : ''}" for="logo-in">${s.logo ? 'تغيير الشعار' : 'رفع الشعار'}</label>
+                <input type="file" id="logo-in" accept="image/png,image/jpeg,image/svg+xml,image/webp" class="hidden" ${dis}>
+                ${s.logo ? `<button class="btn sm ghost" id="logo-rm" ${dis}>إزالة الشعار</button>` : ''}
+                <span class="tiny muted">PNG بخلفية شفافة أفضل. تُصغَّر الصورة تلقائيًا.</span>
+              </div>
+            </div>
+          </div>
+          <div class="card"><h2>الألوان والخط</h2>
+            <div class="grid g3">
+              <label class="f">لون العناوين والخطوط<span class="row"><input type="color" data-id="brandColor" value="${esc(s.brandColor || '#17212c')}" ${dis}><span class="tiny muted num">${esc(s.brandColor || '#17212c')}</span></span></label>
+              <label class="f">لون التمييز<span class="row"><input type="color" data-id="accentColor" value="${esc(s.accentColor || '#0a7c86')}" ${dis}><span class="tiny muted num">${esc(s.accentColor || '#0a7c86')}</span></span></label>
+              <label class="f">خط الفاتورة<select data-id="docFont" ${dis}>${DOC_FONTS.map((f) => `<option ${f === (s.docFont || 'Alexandria') ? 'selected' : ''}>${f}</option>`).join('')}</select></label>
+            </div>
+            ${s.brandColor || s.accentColor ? `<button class="btn sm ghost" id="colors-reset" style="margin-top:10px" ${dis}>إرجاع الألوان الافتراضية</button>` : ''}
+          </div>
+          <div class="card"><h2>العلامة المائية</h2>
+            <span class="seg">${[['none', 'بدون'], ['text', 'نص'], ['logo', 'الشعار']].map(([k, n]) => `<button data-wm="${k}" class="${wt === k ? 'on' : ''}" ${dis} ${k === 'logo' && !s.logo ? 'title="ارفع الشعار أولًا"' : ''}>${n}</button>`).join('')}</span>
+            <div class="grid g2" style="margin-top:12px">
+              ${wt === 'text' ? `<label class="f">النص<input type="text" data-id="wmText" value="${esc(s.wmText || s.companyName)}" ${dis}></label>` : ''}
+              ${wt !== 'none' ? `<label class="f">الوضوح <span class="num">${Number(s.wmOpacity) || 7}%</span><input type="range" min="3" max="20" step="1" data-id="wmOpacity" value="${Number(s.wmOpacity) || 7}" ${dis}></label>` : ''}
+            </div>
+            ${wt === 'logo' && !s.logo ? '<p class="small muted">ارفع الشعار أولًا لتظهر العلامة المائية.</p>' : ''}
+          </div>
+        </div>
+        <aside><div class="card"><h2>معاينة</h2>
+          <div class="id-prev"><div class="doc" style="${docStyle()}">${docHeader('فاتورة', 'INV-2026-0001', today, '')}
+            <div class="doc-meta"><div><span>العميل</span><b>محمد علي</b></div><div><span>الهاتف</span><b class="num">0912345678</b></div><div><span>المشروع</span><b>فيلا</b></div></div>
+            ${linesTable(sample, { noFoot: true })}${totalsBlock(sample.totals)}</div></div>
+          <p class="tiny muted">تنطبق على الفاتورة وعرض السعر، في الشاشة والطباعة وملف PDF.</p></div></aside>
+      </div>`;
+    const set = (patch) => { if (api('settings.update', patch)) { CAT = api('catalog.get'); pageSettings(); } };
+    $$('[data-id]').forEach((el) => {
+      if (el.type === 'range') { el.oninput = () => { el.previousElementSibling.textContent = el.value + '%'; }; el.onchange = () => set({ [el.dataset.id]: Number(el.value) }); }
+      else el.onchange = () => set({ [el.dataset.id]: el.value });
+    });
+    $$('[data-wm]').forEach((b) => (b.onclick = () => set({ wmType: b.dataset.wm })));
+    if ($('#colors-reset')) $('#colors-reset').onclick = () => set({ brandColor: '', accentColor: '' });
+    if ($('#logo-rm')) $('#logo-rm').onclick = () => set(Object.assign({ logo: '' }, s.wmType === 'logo' ? { wmType: 'none' } : {}));
+    const inp = $('#logo-in');
+    if (inp) inp.onchange = () => {
+      const f = inp.files && inp.files[0]; if (!f) return;
+      const rd = new FileReader();
+      rd.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          // تصغير إلى 420 بكسل كحد أقصى حتى يبقى خفيفًا في الحفظ والطباعة
+          const k = Math.min(1, 420 / Math.max(img.width, img.height));
+          const cv = document.createElement('canvas'); cv.width = Math.round(img.width * k) || 1; cv.height = Math.round(img.height * k) || 1;
+          cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+          set({ logo: cv.toDataURL('image/png') }); toast('رُفع الشعار');
+        };
+        img.onerror = () => toast('تعذّر قراءة الصورة. جرّب PNG أو JPG.', true);
+        img.src = rd.result;
+      };
+      rd.readAsDataURL(f);
+    };
+  }
   function docHeader(title, no, date, qr) {
     return `<div class="doc-head">
-      <div class="doc-brand"><div class="brand-mark">ع</div><div><h2>${esc(CAT.settings.companyName)}</h2><div class="muted small">${esc(CAT.settings.companyTagline)}</div></div></div>
+      <div class="doc-brand">${CAT.settings.logo ? `<img class="doc-logo" src="${CAT.settings.logo}" alt="${esc(CAT.settings.companyName)}">` : '<div class="brand-mark">ع</div>'}<div><h2>${esc(CAT.settings.companyName)}</h2><div class="muted small">${esc(CAT.settings.companyTagline)}</div></div></div>
       <div class="doc-id"><div class="doc-title"><h3>${title}</h3><div class="num doc-no">${esc(no)}</div><div class="small muted">التاريخ: <span class="num">${esc(date)}</span></div></div>
         ${qr ? `<div class="doc-qr" data-inv="1" title="امسح الرمز لتحميل الفاتورة">${qr}</div>` : ''}</div>
     </div>`;
@@ -4757,13 +4931,13 @@ var qrcode = function() {
     $('#main').innerHTML = `
       <div class="page-head no-print"><h1>معاينة العرض</h1>${docTabs('quote')}<div class="actions">${printBtns()}<a class="btn ghost" href="#/quote/${q.id}">رجوع</a></div></div>
       <div class="docs" data-show="${DOCVIEW}">
-        <div class="doc doc-summary">${docHeader('عرض سعر', q.no + ' / ن' + q.version, q.date)}${docMeta(q)}
+        <div class="doc doc-summary" style="${docStyle()}">${docHeader('عرض سعر', q.no + ' / ن' + q.version, q.date)}${docMeta(q)}
           ${q.status === 'draft' ? '<div class="demo-banner">مسودة غير معتمدة</div>' : ''}
           ${linesTable(q.doc)}${totalsBlock(q.doc.totals)}
           ${q.terms ? `<h4>الشروط</h4><div class="small" style="white-space:pre-line">${esc(q.terms)}</div>` : ''}
           ${q.notes ? `<h4>ملاحظات</h4><div class="small" style="white-space:pre-line">${esc(q.notes)}</div>` : ''}
         </div>
-        <div class="doc doc-detail">${docHeader('العرض التفصيلي', q.no + ' / ن' + q.version, q.date)}${docMeta(q)}
+        <div class="doc doc-detail" style="${docStyle()}">${docHeader('العرض التفصيلي', q.no + ' / ن' + q.version, q.date)}${docMeta(q)}
           <div class="small muted" style="margin-bottom:10px">كشف الفتحات المشمولة في العرض، برسم توضيحي تقريبي لكل فتحة.</div>
           ${detailCards(q.doc)}
         </div>
@@ -4774,7 +4948,7 @@ var qrcode = function() {
   // ---------- الفواتير ----------
   function pageInvoices() {
     const invs = api('invoices.list') || [];
-    $('#main').innerHTML = `<div class="page-head"><h1>الفواتير</h1></div>
+    $('#main').innerHTML = `<div class="page-head"><h1>الفواتير</h1><div class="actions">${can('quote.edit') ? '<a class="btn primary" href="#/quote/new">فاتورة جديدة</a>' : ''}</div></div>
       <div class="card">${invs.length ? `<div class="tw"><table><thead><tr><th>الرقم</th><th>العميل</th><th>المشروع</th><th>التاريخ</th><th class="n">الإجمالي</th><th class="n">المدفوع</th><th class="n">المتبقي</th><th>الحالة</th></tr></thead>
       <tbody>${invs.slice().reverse().map((i) => `<tr class="click" data-href="#/invoice/${i.id}"><td><b>${esc(i.no)}</b></td><td>${esc(i.customer && i.customer.name)}</td><td>${esc(i.project)}</td><td class="num">${esc(i.date)}</td>
         <td class="n">${fmc(i.grand)}</td><td class="n">${fm(i.paid)}</td><td class="n">${fm(i.remaining)}</td>
@@ -4794,7 +4968,7 @@ var qrcode = function() {
         <div class="actions">${can('export') ? printBtns() : ''}<a class="btn ghost" href="#/invoices">رجوع</a></div></div>
       <div class="split">
         <div class="docs" data-show="${DOCVIEW}">
-        <div class="doc doc-summary">
+        <div class="doc doc-summary" style="${docStyle()}">
           ${docHeader('فاتورة', inv.no, inv.date, QR)}${docMeta(inv)}
           <div class="small muted" style="margin-bottom:8px">صادرة من عرض السعر <span class="num">${esc(inv.quoteNo)}</span> — النسخة المعتمدة ${inv.quoteVersion}. تفاصيل الفتحات في الفاتورة التفصيلية.</div>
           ${linesTable(inv.doc)}${totalsBlock(inv.doc.totals)}
@@ -4816,7 +4990,7 @@ var qrcode = function() {
           ${inv.notes ? `<h4>ملاحظات</h4><div class="small" style="white-space:pre-line">${esc(inv.notes)}</div>` : ''}
           <div class="sig"><div>توقيع العميل</div><div>ختم وتوقيع ${esc(CAT.settings.companyName)}</div></div>
         </div>
-        <div class="doc doc-detail">
+        <div class="doc doc-detail" style="${docStyle()}">
           ${docHeader('الفاتورة التفصيلية', inv.no, inv.date, QR)}${docMeta(inv)}
           <div class="small muted" style="margin-bottom:10px">كشف الفتحات المشمولة في الفاتورة <span class="num">${esc(inv.no)}</span>، برسم توضيحي تقريبي لكل فتحة.</div>
           ${detailCards(inv.doc)}

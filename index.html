@@ -520,6 +520,13 @@ details.fold[open]>summary{margin-bottom:14px}
 .qi-miss:empty{display:none}
 
 .qi-gnote{flex-basis:100%;max-width:420px;min-height:38px;margin-top:4px}
+
+.qi-prices{margin-top:12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}
+.qi-prices-h{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:8px}
+.qi-prices-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:8px}
+.qi-prices-g input{font-weight:700;min-height:40px}
+.qi-prices-g .changed input{border-color:var(--warn);background:var(--warn-soft)}
+.qi-prices-g small{color:var(--warn);font-size:11px}
 </style>
 </head>
 <body>
@@ -1144,6 +1151,8 @@ details.fold[open]>summary{margin-bottom:14px}
         Object.assign(q, { to: String(src.to || '').trim(), phone: String(src.phone || '').trim(), date: src.date || now().slice(0, 10), kind: src.kind === 'final' ? 'final' : 'draft',
           area: round(Math.max(0, Number(src.area) || 0), 4), lines, total, paid,
           glassNote: String(src.glassNote || '').trim(),
+          // أسعار متر عُدّلت في هذه الفاتورة وحدها (الأسعار تتغير)
+          priceOverrides: Object.fromEntries(Object.entries(src.priceOverrides || {}).filter(([, v]) => v !== '' && v != null && Number(v) >= 0).map(([k, v]) => [k, Number(v)])),
           options: opts ? { productIds: opts.productIds || [], packageIds: opts.packageIds || [], glassIds: opts.glassIds || [], chosen: opts.chosen || null,
             list: opts.list.map((o) => ({ key: String(o.key), productId: o.productId || '', packageId: o.packageId || '', glassId: o.glassId || '', label: String(o.label || ''), total: money(o.total) })) } : null,
           extras: Array.isArray(src.extras) ? src.extras.map((x) => ({ desc: String(x.desc || ''), qty: x.qty, unit: String(x.unit || ''), price: x.price, linked: !!x.linked })) : null, remaining: money(total - paid), notes: String(src.notes || ''), updatedAt: now(), updatedBy: u.id });
@@ -5201,14 +5210,14 @@ var qrcode = function() {
     const qp = QP();
     if (id === 'new' || id.startsWith('new-')) {
       if (!can('quote.edit')) { $('#main').innerHTML = '<div class="card empty">لا تملك صلاحية إنشاء الفواتير.</div>'; return; }
-      QI = { id: null, no: '', to: '', phone: '', date: today, kind: 'draft', area: '', paid: '', notes: '', glassNote: '', opt: qiDefaultOpt(),
+      QI = { id: null, no: '', to: '', phone: '', date: today, kind: 'draft', area: '', paid: '', notes: '', glassNote: '', prices: {}, opt: qiDefaultOpt(),
         extras: qp.extras.map((x) => qiRow({ desc: x.name, unit: x.unit, price: x.price == null ? '' : x.price, linked: x.unit === 'م²' })).concat([qiRow()]) };
       const from = id.startsWith('new-') ? api('qinv.get', { id: id.slice(4) }) : null;
       if (from) Object.assign(QI, { to: from.to, phone: from.phone, area: from.area || '', glassNote: from.glassNote || '', opt: from.options ? Object.assign({}, from.options, { chosen: null }) : QI.opt,
         extras: (from.extras || from.lines || []).map((l) => qiRow(l)) });
     } else {
       const q = api('qinv.get', { id }); if (!q) return;
-      QI = Object.assign(q, { opt: q.options || { productIds: [], packageIds: [], glassIds: [], counts: {}, chosen: null }, extras: (q.extras || q.lines || []).map((l) => qiRow(l)) });
+      QI = Object.assign(q, { prices: q.priceOverrides || {}, opt: q.options || { productIds: [], packageIds: [], glassIds: [], counts: {}, chosen: null }, extras: (q.extras || q.lines || []).map((l) => qiRow(l)) });
       if (!QI.extras.length) QI.extras.push(qiRow());
     }
     renderQuick();
@@ -5216,7 +5225,7 @@ var qrcode = function() {
   const nameOf = (list, id) => (list.find((x) => x.id === id) || {}).name || '';
   // كل التركيبات المختارة: منتج × باقة × زجاج (حتى 12 خيارًا)
   function qiCombos() {
-    const qp = QP(), o = QI.opt;
+    const qp = qpEff(), o = QI.opt;
     const ps = o.productIds.length ? o.productIds : [''], ks = o.packageIds.length ? o.packageIds : [''], gs = o.glassIds.length ? o.glassIds : [''];
     if (!o.productIds.length && !o.packageIds.length && !o.glassIds.length) return [];
     const out = [];
@@ -5235,6 +5244,11 @@ var qrcode = function() {
     return combos.find((c) => c.key === QI.opt.chosen) || null;
   }
   const qiEditable = () => can('quote.edit');
+  function qpEff() {
+    const qp = JSON.parse(JSON.stringify(QP())), ov = QI.prices || {};
+    ['products', 'packages', 'glasses'].forEach((k) => qp[k].forEach((x) => { if (ov[x.id] !== undefined && ov[x.id] !== '') x.price = Number(ov[x.id]); }));
+    return qp;
+  }
   const qiRange = (combos) => { const t = combos.filter((c) => !c.missing.length).map((c) => c.total); return t.length ? [fmc(Math.min(...t)), fmc(Math.max(...t))] : ['—', '—']; };
   function qiDoc() {
     const combos = qiCombos(), ch = qiChosen(combos);
@@ -5293,6 +5307,14 @@ var qrcode = function() {
             <div class="qi-pick"><span class="qi-pick-t">الإكسسوار</span><div class="picks">${pick('packageIds', qp.packages, QI.opt.packageIds)}</div></div>
             <div class="qi-pick"><span class="qi-pick-t">الزجاج</span><div class="picks">${pick('glassIds', qp.glasses, QI.opt.glassIds)}
               <input type="text" class="qi-gnote" data-qi="glassNote" value="${esc(QI.glassNote || '')}" placeholder="ملاحظة على الزجاج (اختياري)، مثل: خريطة" aria-label="ملاحظة على الزجاج" ${ro}></div></div>
+            ${(() => { const sel = [['المادة', qp.products, QI.opt.productIds], ['الإكسسوار', qp.packages, QI.opt.packageIds], ['الزجاج', qp.glasses, QI.opt.glassIds]]
+              .flatMap(([g, list, ids]) => list.filter((x) => ids.includes(x.id)).map((x) => ({ g, x })));
+              if (!sel.length) return '';
+              const changed = sel.some(({ x }) => QI.prices[x.id] !== undefined && QI.prices[x.id] !== '' && Number(QI.prices[x.id]) !== Number(x.price));
+              return `<div class="qi-prices"><div class="qi-prices-h"><b>سعر المتر في هذه الفاتورة</b><span class="tiny muted">عدّله إن تغيّر السعر. القائمة لا تتغير إلا إن حفظته فيها.</span></div>
+                <div class="qi-prices-g">${sel.map(({ g, x }) => { const v = QI.prices[x.id] !== undefined ? QI.prices[x.id] : (x.price == null ? '' : x.price); const ch = QI.prices[x.id] !== undefined && QI.prices[x.id] !== '' && Number(QI.prices[x.id]) !== Number(x.price);
+                  return `<label class="f ${ch ? 'changed' : ''}"><span><span class="muted">${g}:</span> ${esc(x.name)}</span><input type="number" min="0" step="0.001" data-qprice="${x.id}" value="${esc(v)}" placeholder="يُحدَّد" ${ro}>${ch ? `<small>في القائمة: ${x.price == null ? '—' : fm(x.price)}</small>` : ''}</label>`; }).join('')}</div>
+                ${changed && can('prices.manage') ? '<button class="btn sm" id="qp-commit">حفظ هذه الأسعار في القائمة</button>' : ''}</div>`; })()}
             ${combos.length ? `<div class="tw"><table class="qi-opts"><thead><tr><th></th><th>#</th><th>الخيار</th><th class="n">الإجمالي</th></tr></thead><tbody>
               ${combos.map((c, i) => `<tr class="${ch && ch.key === c.key ? 'on' : ''}" data-qchoose="${esc(c.key)}"><td><input type="radio" name="qi-choice" aria-label="اختيار ${i + 1}" ${ch && ch.key === c.key ? 'checked' : ''} ${ro}></td>
                 <td class="num">${i + 1}</td><td><bdi>${esc(c.label)}</bdi><div class="tiny qi-miss" id="qi-om-${i}">${c.missing.length ? 'بلا سعر: ' + esc(c.missing.join('، ')) : ''}</div></td>
@@ -5341,7 +5363,15 @@ var qrcode = function() {
       $('#qi-docs').innerHTML = qiDoc();
     };
     $$('[data-qi]').forEach((el) => (el.oninput = () => { QI[el.dataset.qi] = el.value; refresh(); }));
-    $$('[data-qcount]').forEach((el) => (el.oninput = () => { QI.opt.counts[el.dataset.qcount] = el.value; refresh(); }));
+    $$('[data-qprice]').forEach((el) => {
+      el.oninput = () => { QI.prices[el.dataset.qprice] = el.value; refresh(); };
+      el.onchange = () => renderQuick(); // يُظهر «في القائمة» وزر الحفظ بعد انتهاء الكتابة
+    });
+    if ($('#qp-commit')) $('#qp-commit').onclick = () => {
+      const qp = JSON.parse(JSON.stringify(QP()));
+      ['products', 'packages', 'glasses'].forEach((k) => qp[k].forEach((x) => { const v = QI.prices[x.id]; if (v !== undefined && v !== '') x.price = Number(v); }));
+      if (api('quickpricing.set', { quickPricing: qp })) { CAT = api('catalog.get'); QI.prices = {}; toast('حُفظت الأسعار الجديدة في القائمة'); renderQuick(); }
+    };
     $$('[data-qkind]').forEach((b) => (b.onclick = () => { QI.kind = b.dataset.qkind; renderQuick(); }));
     $$('[data-pick-g]').forEach((b) => (b.onclick = () => {
       const arr = QI.opt[b.dataset.pickG], id = b.dataset.pickId, i = arr.indexOf(id);
@@ -5376,7 +5406,7 @@ var qrcode = function() {
       const payload = Object.assign({}, QI, {
         lines: ch ? ch.lines.map((l) => ({ desc: l.desc, qty: l.qty, unit: l.unit, price: l.price })) : [],
         options: combos.length ? Object.assign({}, QI.opt, { chosen: ch ? ch.key : null, list: combos.map((c) => ({ key: c.key, productId: c.productId, packageId: c.packageId, glassId: c.glassId, label: c.label, total: c.total })) }) : null,
-        extras: QI.extras,
+        extras: QI.extras, priceOverrides: QI.prices,
       });
       const r = api('qinv.save', { invoice: payload });
       if (r) { history.replaceState(null, '', '#/quick/' + r.id); toast((ch ? 'حُفظت الفاتورة ' : 'حُفظ العرض ') + r.no); pageQuick(r.id); }

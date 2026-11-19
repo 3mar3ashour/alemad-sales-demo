@@ -466,6 +466,31 @@ details.fold[open]>summary{margin-bottom:14px}
 @media (max-width:1000px){.id-split{grid-template-columns:minmax(0,1fr)}.id-aside{position:static}}
 @media (max-width:600px){.swatches{grid-template-columns:minmax(0,1fr)}.doc{padding:18px 14px}.doc .doc-title{min-width:0}.doc .doc-title h3{font-size:22px}}
 @media print{.doc::before{display:none}.doc{padding:0}}
+
+/* الفاتورة السريعة */
+.print-only{display:none}
+@media print{.print-only{display:block}}
+.qi-area input{font-size:22px;font-weight:700;min-height:52px;max-width:260px}
+.qi-area .f > span{font-size:15px;color:var(--ink)}
+.qi-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.qi-chips .chip{font-size:13px;padding:5px 11px}
+.qi-chips .chip:hover{border-color:var(--accent);color:var(--accent)}
+.qi-t td{padding:6px 5px;vertical-align:middle}
+.qi-t input,.qi-t select{min-height:38px;padding:5px 8px}
+.qi-t td:nth-child(2){min-width:230px}
+.qi-t td:nth-child(3) input{width:90px}.qi-t td:nth-child(5) input{width:100px}
+.qi-t td:nth-child(4) select{width:84px}
+.qi-t td:nth-child(6){font-weight:700;white-space:nowrap}
+.qi-link{border:1px dashed var(--accent);background:var(--accent-soft);color:var(--accent);border-radius:8px;padding:6px 10px;font-weight:700;cursor:pointer;white-space:nowrap}
+.qi-relink{border:0;background:none;color:var(--accent);cursor:pointer;font-size:15px;padding:0 4px}
+.qi-words{margin-top:10px;padding:10px 12px;background:var(--surface-2);border-radius:10px;color:var(--ink-2);line-height:1.6}
+.doc .words{margin:14px 0 0;padding:10px 14px;border:1px dashed var(--line-2);border-radius:10px;font-size:13px}
+.doc .words span{color:var(--muted);margin-inline-end:6px}
+@media (max-width:900px){.tw table.qi-t{min-width:760px}}
+
+/* زر رئيسي كبير داخل لوحة الحساب: نصه أبيض لا بلون التمييز */
+.calc .btn.primary.big,.btn.primary.big{color:var(--accent-ink)}
+.nowrap{white-space:nowrap}
 </style>
 </head>
 <body>
@@ -956,6 +981,9 @@ details.fold[open]>summary{margin-bottom:14px}
     // store: { load(): db|null, save(db) }
     let db = store.load();
     if (!db) throw new Error('لا توجد قاعدة بيانات');
+    // الفواتير السريعة (مثل دفتر الفواتير الورقي): تُضاف للقواعد القديمة دون مسح شيء
+    db.quickInvoices = db.quickInvoices || [];
+    db.counters.quick = db.counters.quick || 0;
     const persist = () => store.save(db);
     const now = () => (store.now ? store.now() : new Date().toISOString());
     const nid = (p) => p + '-' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
@@ -1008,6 +1036,36 @@ details.fold[open]>summary{margin-bottom:14px}
       'users.list': { perm: null, run: () => clone(db.users.map((u) => ({ id: u.id, name: u.name, role: u.role, grants: u.grants }))) },
       'quotes.list': { perm: 'sales.view', run: () => db.quotes.map((q) => { const v = views.quote(q); return { id: q.id, no: q.no, version: q.version, status: q.status, customer: q.customer, project: q.project, date: q.date, total: v.doc.totals.total, pieces: v.doc.totals.pieces, invoiceId: q.invoiceId || null }; }) },
       'quote.get': { perm: 'sales.view', run: (u, p) => views.quote(getQuote(p.id)) },
+      // ---------- الفاتورة السريعة: بنود حرة (بيان، كمية، وحدة، سعر) مثل الدفتر الورقي ----------
+      'qinv.list': { perm: 'sales.view', run: () => clone(db.quickInvoices.map((q) => ({ id: q.id, no: q.no, date: q.date, to: q.to, kind: q.kind, total: q.total, paid: q.paid, remaining: q.remaining, lines: q.lines.length }))) },
+      'qinv.get': { perm: 'sales.view', run: (u, p) => { const q = db.quickInvoices.find((x) => x.id === p.id); if (!q) fail('NOT_FOUND', 'الفاتورة غير موجودة'); return clone(q); } },
+      'qinv.save': { perm: 'quote.edit', run: (u, p) => {
+        const src = p.invoice || {};
+        const lines = (src.lines || []).map((l) => ({ desc: String(l.desc || '').trim(), qty: Number(l.qty) || 0, unit: String(l.unit || '').trim(), price: l.price === '' || l.price == null ? NaN : Number(l.price), linked: !!l.linked }))
+          .filter((l) => l.desc || l.qty || (l.price > 0));
+        if (!lines.length) fail('INVALID', 'أضف بندًا واحدًا على الأقل');
+        lines.forEach((l, i) => {
+          if (!l.desc) fail('INVALID', `البند ${i + 1}: البيان مطلوب`);
+          if (!(l.qty > 0)) fail('INVALID', `البند ${i + 1}: الكمية يجب أن تكون أكبر من صفر`);
+          if (!(l.price >= 0)) fail('INVALID', `البند ${i + 1}: سعر الوحدة غير صالح`);
+          l.total = money(l.qty * l.price);
+        });
+        const total = money(lines.reduce((s, l) => s + l.total, 0));
+        const paid = money(Math.max(0, Number(src.paid) || 0));
+        if (paid > total) fail('INVALID', 'المدفوع أكبر من الإجمالي');
+        let q = src.id ? db.quickInvoices.find((x) => x.id === src.id) : null;
+        if (src.id && !q) fail('NOT_FOUND', 'الفاتورة غير موجودة');
+        const isNew = !q;
+        if (isNew) {
+          db.counters.quick += 1;
+          q = { id: nid('qi'), no: `QI-${year()}-${String(db.counters.quick).padStart(4, '0')}`, createdBy: u.id, createdAt: now() };
+          db.quickInvoices.push(q);
+        }
+        Object.assign(q, { to: String(src.to || '').trim(), phone: String(src.phone || '').trim(), date: src.date || now().slice(0, 10), kind: src.kind === 'final' ? 'final' : 'draft',
+          area: round(Math.max(0, Number(src.area) || 0), 4), lines, total, paid, remaining: money(total - paid), notes: String(src.notes || ''), updatedAt: now(), updatedBy: u.id });
+        audit(u, isNew ? 'إنشاء فاتورة سريعة' : 'تعديل فاتورة سريعة', q.no, `${lines.length} بند — ${total}`);
+        return clone(q);
+      } },
       'invoices.list': { perm: 'sales.view', run: () => db.invoices.map((i) => Object.assign({ id: i.id, no: i.no, date: i.date, customer: i.customer, project: i.project }, invoiceBalance(i))) },
       'invoice.get': { perm: 'sales.view', run: (u, p) => views.invoice(getInvoice(p.id)) },
       'price.lookup': { perm: 'sales.view', run: (u, p) => clone(priceFor(p.seriesId, p.productTypeId, p.openingTypeId)) },
@@ -1211,7 +1269,7 @@ details.fold[open]>summary{margin-bottom:14px}
       } },
     };
 
-    const MUTATING = (name) => !/^(session|catalog\.get|users\.list|quotes\.list|quote\.get|invoices\.list|invoice\.get|price\.lookup|audit\.list|prices\.history)/.test(name);
+    const MUTATING = (name) => !/^(session|catalog\.get|users\.list|quotes\.list|quote\.get|invoices\.list|invoice\.get|price\.lookup|audit\.list|prices\.history|qinv\.list|qinv\.get)/.test(name);
 
     function handle(userId, action, payload) {
       const user = byId(db.users, userId);
@@ -3914,7 +3972,7 @@ var qrcode = function() {
   // ---------- الإطار ----------
   // وضع العرض للعميل: حساب مدير مبيعات، بلا كتالوج أو أسعار أو صلاحيات أو تدقيق أو تبديل مستخدم
   const CUSTOMER = !!window.ALEMAD_CUSTOMER;
-  const NAV = [['#/invoices', 'الفواتير', 'sales.view'], ['#/quotes', 'العروض', 'sales.view'], ['#/settings', 'الإعدادات', null]];
+  const NAV = [['#/quick', 'فاتورة سريعة', 'sales.view'], ['#/invoices', 'الفواتير التفصيلية', 'sales.view'], ['#/quotes', 'العروض', 'sales.view'], ['#/settings', 'الإعدادات', null]];
   const SETTINGS_PAGES = ['settings', 'catalog', 'users', 'audit'];
   function settingsTabs(active) {
     const t = [['#/settings', 'هوية الفاتورة'], ['#/catalog', 'الكتالوج والأسعار'], ['#/users', 'الصلاحيات'], ['#/audit', 'سجل التدقيق', 'audit.view']];
@@ -3946,7 +4004,7 @@ var qrcode = function() {
     $$('.modal-bg,.pv-bg').forEach((el) => el.parentNode.removeChild(el)); // لا تبقى نافذة أو معاينة مفتوحة بعد الانتقال
     document.body.style.overflow = '';
     loadSession();
-    const h = location.hash || '#/invoices';
+    const h = location.hash || '#/quick'; // الفاتورة السريعة أول ما يفتح
     const [, page, id, sub] = h.split('/');
     if (CUSTOMER && SETTINGS_PAGES.includes(page)) { location.hash = '#/invoices'; return; }
     $('#subnav').innerHTML = SETTINGS_PAGES.includes(page) ? settingsTabs('#/' + page) : '';
@@ -3955,9 +4013,9 @@ var qrcode = function() {
     document.body.classList.toggle('viewer', page === 'v');
     if (page === 'v') { setNav(''); pageView(h.slice(4)); return; }
     if (!CAT && page !== 'users' && page !== 'catalog') { setNav(''); main.innerHTML = noAccess(); return; }
-    const map = { quotes: pageQuotes, quote: () => (sub === 'print' ? pageQuotePrint(id) : pageQuote(id)), invoices: pageInvoices, invoice: () => pageInvoice(id), catalog: pageCatalog, users: pageUsers, audit: pageAudit, settings: pageSettings };
+    const map = { quotes: pageQuotes, quote: () => (sub === 'print' ? pageQuotePrint(id) : pageQuote(id)), invoices: pageInvoices, invoice: () => pageInvoice(id), catalog: pageCatalog, users: pageUsers, audit: pageAudit, settings: pageSettings, quick: () => (id ? pageQuick(id) : pageQuickList()) };
     setNav('#/' + (page === 'quote' ? 'quotes' : page === 'invoice' ? 'invoices' : SETTINGS_PAGES.includes(page) ? 'settings' : page));
-    (map[page] || pageInvoices)(id);
+    (map[page] || pageQuickList)(id);
   }
   const noAccess = () => `<div class="card empty">لا تملك صلاحية عرض المبيعات. اطلبها من مالك النظام أو مدير النظام.</div>`;
 
@@ -4468,7 +4526,7 @@ var qrcode = function() {
     bg.setAttribute('role', 'dialog'); bg.setAttribute('aria-modal', 'true'); bg.setAttribute('aria-label', 'معاينة قبل الطباعة');
     bg.innerHTML = `<div class="pv-bar">
         <b class="pv-t">معاينة قبل الطباعة</b>
-        <span class="seg" id="pv-which">${Object.keys(names).map((k) => `<button data-pw="${k}" class="${k === which ? 'on' : ''}">${names[k]}</button>`).join('')}</span>
+        <span class="seg ${$('.docs .doc-detail') ? '' : 'hidden'}" id="pv-which">${Object.keys(names).map((k) => `<button data-pw="${k}" class="${k === which ? 'on' : ''}">${names[k]}</button>`).join('')}</span>
         <span class="spacer"></span>
         <button class="btn primary" id="pv-pdf">تنزيل PDF</button><button class="btn" id="pv-print">طباعة</button><button class="btn ghost" id="pv-x" aria-label="إغلاق المعاينة">✕</button>
       </div>
@@ -4999,6 +5057,197 @@ var qrcode = function() {
       rd.readAsDataURL(f);
     };
   }
+  // ---------- المبلغ بالحروف (دينار ليبي: الدينار = 1000 درهم) ----------
+  function arWords(n) {
+    n = Math.floor(n);
+    if (n === 0) return 'صفر';
+    const ones = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة', 'عشرة', 'أحد عشر', 'اثنا عشر', 'ثلاثة عشر', 'أربعة عشر', 'خمسة عشر', 'ستة عشر', 'سبعة عشر', 'ثمانية عشر', 'تسعة عشر'];
+    const tens = ['', '', 'عشرون', 'ثلاثون', 'أربعون', 'خمسون', 'ستون', 'سبعون', 'ثمانون', 'تسعون'];
+    const hund = ['', 'مائة', 'مائتان', 'ثلاثمائة', 'أربعمائة', 'خمسمائة', 'ستمائة', 'سبعمائة', 'ثمانمائة', 'تسعمائة'];
+    const lt1000 = (x) => { const p = []; const h = Math.floor(x / 100), r = x % 100; if (h) p.push(hund[h]); if (r) { if (r < 20) p.push(ones[r]); else { const u = r % 10, t = Math.floor(r / 10); p.push(u ? ones[u] + ' و' + tens[t] : tens[t]); } } return p.join(' و'); };
+    const scale = (x, one, two, few, many) => (x === 1 ? one : x === 2 ? two : x <= 10 ? lt1000(x) + ' ' + few : lt1000(x) + ' ' + many);
+    const parts = [];
+    const m = Math.floor(n / 1e6), t = Math.floor((n % 1e6) / 1000), r = n % 1000;
+    if (m) parts.push(scale(m, 'مليون', 'مليونان', 'ملايين', 'مليون'));
+    if (t) parts.push(scale(t, 'ألف', 'ألفان', 'آلاف', 'ألف'));
+    if (r) parts.push(lt1000(r));
+    return parts.join(' و');
+  }
+  function amountWords(x) {
+    const v = Math.round(Number(x || 0) * 1000), d = Math.floor(v / 1000), f = v % 1000;
+    return arWords(d) + ' دينار' + (f ? ' و' + arWords(f) + ' درهم' : '') + ' لا غير';
+  }
+
+  // ---------- الفاتورة السريعة: إجمالي الأمتار × سعر متر المنتج، والإكسسوارات بالعدد ----------
+  const QI_UNITS = ['م²', 'م', 'قطعة', 'طقم', 'كغ', 'لفة'];
+  let QI = null;
+  const qiRow = (o) => Object.assign({ desc: '', qty: '', unit: 'م²', price: '', linked: true }, o || {});
+  // بنود الكتالوج بأسعارها: المنتجات (سعر المتر لكل سلسلة)، الزجاج الإضافي، السرانتي، والإكسسوارات
+  function qiCatalogItems() {
+    const out = [];
+    CAT.series.forEach((se) => {
+      const co = byId(CAT.companies, se.companyId); if (!co) return;
+      const cat = byId(CAT.categories, co.categoryIds && co.categoryIds[0]);
+      const pr = CAT.prices.filter((p) => p.seriesId === se.id && Number(p.price) > 0);
+      if (!pr.length) return;
+      const pick = pr.find((p) => p.productTypeId === 'window') || pr[0];
+      out.push({ desc: [cat && cat.name, co.name, se.name].filter(Boolean).join(' '), unit: 'م²', price: Number(pick.price), kind: 'p' });
+    });
+    (CAT.glass.extraPrices || []).forEach((g) => {
+      const c = byId(CAT.glass.configs, g.config), a = byId(CAT.glass.appearances, g.appearance);
+      if (Number(g.price) > 0) out.push({ desc: 'زجاج ' + [c && c.name, a && a.name].filter(Boolean).join(' '), unit: 'م²', price: Number(g.price), kind: 'g' });
+    });
+    if (Number(CAT.settings.shutterPricePerM2) > 0) out.push({ desc: 'سرانتي', unit: 'م²', price: Number(CAT.settings.shutterPricePerM2), kind: 's' });
+    CAT.accessories.forEach((a) => { if (Number(a.price) > 0) out.push({ desc: a.name, unit: /طقم/.test(a.unit) ? 'طقم' : 'قطعة', price: Number(a.price), kind: 'a' }); });
+    return out;
+  }
+  // بنود استُخدمت في فواتير سريعة سابقة، بآخر سعر
+  function qiHistoryItems() {
+    const m = new Map();
+    (api('qinv.list', {}, { silent: true }) || []).forEach((h) => {
+      const q = api('qinv.get', { id: h.id }, { silent: true }); if (!q) return;
+      q.lines.forEach((l) => { const k = l.desc; const e = m.get(k) || { desc: l.desc, unit: l.unit, price: l.price, n: 0 }; e.n += 1; e.unit = l.unit; e.price = l.price; m.set(k, e); });
+    });
+    return [...m.values()].sort((a, b) => b.n - a.n);
+  }
+  function pageQuickList() {
+    const list = api('qinv.list') || [];
+    $('#main').innerHTML = `<div class="page-head"><h1>الفواتير السريعة</h1><span class="muted small">إجمالي الأمتار × سعر متر المنتج، والإكسسوارات بالعدد. بلا تفصيل كل نافذة وباب.</span>
+        <div class="actions">${can('quote.edit') ? '<a class="btn primary" href="#/quick/new">فاتورة سريعة جديدة</a>' : ''}</div></div>
+      <div class="card">${list.length ? `<div class="tw"><table><thead><tr><th>الرقم</th><th>إلى</th><th>التاريخ</th><th>النوع</th><th class="n">البنود</th><th class="n">الإجمالي</th><th class="n">المدفوع</th><th class="n">الباقي</th><th></th></tr></thead><tbody>
+        ${list.slice().reverse().map((q) => `<tr class="click" data-href="#/quick/${q.id}"><td><b class="num">${esc(q.no)}</b></td><td>${esc(q.to || '—')}</td><td class="num">${esc(q.date)}</td>
+          <td>${q.kind === 'final' ? '<span class="badge ok">نهائية</span>' : '<span class="badge warn">مبدئية</span>'}</td><td class="n num">${q.lines}</td><td class="n">${fmc(q.total)}</td><td class="n">${fm(q.paid)}</td><td class="n">${fm(q.remaining)}</td>
+          <td>${can('quote.edit') ? `<button class="btn sm" data-qcopy="${q.id}" title="فاتورة جديدة بنفس البنود والأسعار">نسخ</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`
+        : '<div class="empty">لا توجد فواتير سريعة بعد. اضغط «فاتورة سريعة جديدة»: اكتب إجمالي الأمتار واختر المنتج، والسعر يأتي من قائمة الأسعار.</div>'}</div>`;
+    bindRows();
+    $$('[data-qcopy]').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); location.hash = '#/quick/new-' + b.dataset.qcopy; }));
+  }
+  function pageQuick(id) {
+    const today = new Date().toISOString().slice(0, 10);
+    if (id === 'new' || id.startsWith('new-')) {
+      if (!can('quote.edit')) { $('#main').innerHTML = '<div class="card empty">لا تملك صلاحية إنشاء الفواتير.</div>'; return; }
+      QI = { id: null, no: '', to: '', phone: '', date: today, kind: 'draft', area: '', paid: '', notes: '', lines: [qiRow(), qiRow(), qiRow({ unit: 'قطعة', linked: false }), qiRow({ unit: 'قطعة', linked: false })] };
+      const from = id.startsWith('new-') ? api('qinv.get', { id: id.slice(4) }) : null;
+      if (from) Object.assign(QI, { to: from.to, phone: from.phone, area: from.area || '', lines: from.lines.map((l) => qiRow({ desc: l.desc, qty: l.linked ? '' : l.qty, unit: l.unit, price: l.price, linked: l.linked })) });
+    } else { const q = api('qinv.get', { id }); if (!q) return; QI = Object.assign(q, { lines: q.lines.map((l) => qiRow(l)) }); }
+    renderQuick();
+  }
+  const qiEditable = () => can('quote.edit');
+  function qiLineQty(l) { return l.unit === 'م²' && l.linked ? Number(QI.area) || 0 : Number(l.qty) || 0; }
+  function qiTotals() {
+    const lines = QI.lines.filter((l) => l.desc || Number(l.price) > 0).map((l) => Object.assign({}, l, { q: qiLineQty(l), t: Math.round(qiLineQty(l) * (Number(l.price) || 0) * 1000) / 1000 }));
+    const total = Math.round(lines.reduce((s, l) => s + l.t, 0) * 1000) / 1000, paid = Number(QI.paid) || 0;
+    return { lines, total, paid, remaining: Math.round((total - paid) * 1000) / 1000 };
+  }
+  function qiDoc() {
+    const t = qiTotals();
+    const money = (x) => `<span class="money">${fm(x)}<span>${esc(cur())}</span></span>`;
+    return `<div class="doc doc-summary" style="${docStyle()}">${docHeader(QI.kind === 'final' ? 'فاتورة نهائية' : 'فاتورة مبدئية', QI.no || 'مسودة', QI.date, '')}
+      <div class="doc-meta"><div><span>إلى الأخوة</span><b>${esc(QI.to || '—')}</b></div><div><span>الهاتف</span><b class="num">${esc(QI.phone || '—')}</b></div><div><span>إجمالي الأمتار</span><b class="nowrap"><bdi class="num">${Number(QI.area || 0).toFixed(2)}</bdi> م²</b></div></div>
+      <div class="tw"><table><thead><tr><th>#</th><th>البيان</th><th class="n">الكمية</th><th>الوحدة</th><th class="n">سعر الوحدة</th><th class="n">المجموع</th></tr></thead><tbody>
+        ${t.lines.map((l, i) => `<tr><td class="num">${i + 1}</td><td><bdi>${esc(l.desc)}</bdi></td><td class="n"><span class="num">${/م/.test(l.unit) || !Number.isInteger(l.q) ? Number(l.q).toFixed(2) : l.q}</span></td><td>${esc(l.unit)}</td><td class="n">${fm(l.price)}</td><td class="n">${fm(l.t)}</td></tr>`).join('')}
+      </tbody></table></div>
+      <div class="totals"><div class="line"><span>الإجمالي</span><b>${money(t.total)}</b></div><div class="line"><span>المدفوع</span><b>${money(t.paid)}</b></div><div class="line grand"><span>الباقي</span><b>${money(t.remaining)}</b></div></div>
+      <p class="words"><span>المبلغ بالحروف:</span> ${esc(amountWords(t.total))}</p>
+      ${QI.notes ? `<h4>ملاحظات</h4><div class="small" style="white-space:pre-line">${esc(QI.notes)}</div>` : ''}
+      <div class="sig"><div>توقيع المستلم</div><div>التوقيع والختم — ${esc(CAT.settings.companyName)}</div></div></div>`;
+  }
+  function renderQuick() {
+    const ed = qiEditable(), ro = ed ? '' : 'disabled';
+    const cat = qiCatalogItems(), hist = qiHistoryItems();
+    const all = hist.concat(cat.filter((c) => !hist.some((h) => h.desc === c.desc)));
+    const chips = hist.slice(0, 8).concat(cat.filter((c) => c.kind === 'p').slice(0, Math.max(0, 6 - Math.min(6, hist.length))));
+    const t = qiTotals();
+    $('#main').innerHTML = `
+      <div class="page-head no-print"><h1>${QI.no ? 'الفاتورة السريعة ' + esc(QI.no) : 'فاتورة سريعة جديدة'}</h1>${QI.no ? (QI.kind === 'final' ? '<span class="badge ok">نهائية</span>' : '<span class="badge warn">مبدئية</span>') : ''}
+        <div class="actions">${printBtns()}<a class="btn ghost" href="#/quick">رجوع</a></div></div>
+      <div class="split no-print qi">
+        <div>
+          <div class="card"><div class="grid g4">
+            <label class="f" style="grid-column:span 2">إلى الأخوة<input type="text" id="qi-to" data-qi="to" value="${esc(QI.to)}" placeholder="اسم العميل" ${ro}></label>
+            <label class="f">الهاتف<input type="tel" data-qi="phone" value="${esc(QI.phone)}" ${ro}></label>
+            <label class="f">التاريخ<input type="date" data-qi="date" value="${esc(QI.date)}" ${ro}></label>
+          </div>
+          <div class="row" style="margin-top:12px"><span class="small" style="font-weight:600">النوع</span>
+            <span class="seg"><button data-qkind="draft" class="${QI.kind !== 'final' ? 'on' : ''}" ${ro}>مبدئية</button><button data-qkind="final" class="${QI.kind === 'final' ? 'on' : ''}" ${ro}>نهائية</button></span></div></div>
+
+          <div class="card qi-area"><label class="f"><span><b>إجمالي الأمتار</b> <span class="muted">(م²)</span></span>
+            <input type="number" min="0" step="0.01" inputmode="decimal" id="qi-area" data-qi="area" value="${esc(QI.area)}" placeholder="مثل 30.15" ${ro}></label>
+            <p class="small muted" style="margin:6px 0 0">كل بند وحدته م² يأخذ هذه الأمتار تلقائيًا: المنتج والزجاج والسرانتي. اكتب كمية أخرى في البند إن اختلفت.</p></div>
+
+          <div class="card"><div class="row" style="margin-bottom:10px"><h2 style="margin:0">البنود</h2><span class="spacer"></span><span class="tiny muted">اكتب البيان أو اختر من القائمة، والسعر يأتي من قائمة الأسعار أو آخر فاتورة.</span></div>
+            ${ed && chips.length ? `<div class="qi-chips">${chips.map((c, i) => `<button class="chip" data-qchip="${i}" title="${esc(c.unit)} × ${c.price}">+ ${esc(c.desc)}</button>`).join('')}</div>` : ''}
+            <div class="tw"><table class="qi-t"><thead><tr><th>#</th><th>البيان</th><th class="n">الكمية</th><th>الوحدة</th><th class="n">سعر الوحدة</th><th class="n">المجموع</th><th></th></tr></thead><tbody>
+              ${QI.lines.map((l, i) => { const linked = l.unit === 'م²' && l.linked; return `<tr>
+                <td class="muted">${i + 1}</td>
+                <td><input type="text" list="qi-items" data-ql="${i}.desc" value="${esc(l.desc)}" placeholder="مثل PVC أبيض كومبن" ${ro}></td>
+                <td class="n">${linked ? `<button class="qi-link" data-qunlink="${i}" title="يأخذ إجمالي الأمتار. اضغط لكتابة كمية أخرى" ${ro}><span class="num">${Number(QI.area || 0).toFixed(2)}</span> ⟲</button>` : `<input type="number" min="0" step="0.01" data-ql="${i}.qty" value="${esc(l.qty)}" ${ro}>${l.unit === 'م²' ? `<button class="qi-relink" data-qrelink="${i}" title="ربط بإجمالي الأمتار" ${ro}>⟲</button>` : ''}`}</td>
+                <td><select data-ql="${i}.unit" ${ro}>${QI_UNITS.map((u) => `<option ${u === l.unit ? 'selected' : ''}>${u}</option>`).join('')}</select></td>
+                <td class="n"><input type="number" min="0" step="0.001" data-ql="${i}.price" value="${esc(l.price)}" ${ro}></td>
+                <td class="n" id="qi-tot-${i}">${fm(qiLineQty(l) * (Number(l.price) || 0))}</td>
+                <td>${ed ? `<button class="btn sm ghost" data-qdelrow="${i}" aria-label="حذف البند">✕</button>` : ''}</td></tr>`; }).join('')}
+            </tbody></table></div>
+            <datalist id="qi-items">${all.map((c) => `<option value="${esc(c.desc)}">${esc(c.unit)} — ${c.price}</option>`).join('')}</datalist>
+            ${ed ? '<button class="btn sm" id="qi-addrow" style="margin-top:10px">+ بند</button>' : ''}
+          </div>
+          <details class="card fold"><summary><h2>ملاحظات</h2></summary><textarea data-qi="notes" ${ro}>${esc(QI.notes || '')}</textarea></details>
+        </div>
+        <aside><div class="card calc">
+          <h2>الحساب</h2>
+          <div class="line"><span>الإجمالي</span><span class="big" id="qi-total">${fmc(t.total)}</span></div>
+          <label class="f" style="margin:10px 0">المدفوع (${cur()})<input type="number" min="0" step="0.001" data-qi="paid" value="${esc(QI.paid)}" ${ro}></label>
+          <div class="line"><span>الباقي</span><b id="qi-rem">${fmc(t.remaining)}</b></div>
+          <div class="small qi-words" id="qi-words">${esc(amountWords(t.total))}</div>
+          <div class="grid" style="margin-top:12px">
+            ${ed ? '<button class="btn primary big" id="qi-save">حفظ الفاتورة</button>' : ''}
+            ${QI.id && ed ? `<a class="btn" href="#/quick/new-${QI.id}">نسخ إلى فاتورة جديدة</a>` : ''}
+            <a class="btn ghost" href="#/quote/new">تحتاج تفصيلًا؟ فاتورة تفصيلية</a>
+          </div>
+        </div></aside>
+      </div>
+      <div class="docs print-only" data-show="summary" id="qi-docs">${qiDoc()}</div>`;
+    bindDocs({ kind: 'invoice', name: 'فاتورة ' + (QI.no || 'سريعة') });
+    bindQuick(all, chips);
+  }
+  function bindQuick(all, chips) {
+    const refresh = () => {
+      const t = qiTotals();
+      QI.lines.forEach((l, i) => { const c = $('#qi-tot-' + i); if (c) c.innerHTML = fm(qiLineQty(l) * (Number(l.price) || 0)); });
+      $('#qi-total').innerHTML = fmc(t.total); $('#qi-rem').innerHTML = fmc(t.remaining); $('#qi-words').textContent = amountWords(t.total);
+      $$('.qi-link .num').forEach((x) => (x.textContent = Number(QI.area || 0).toFixed(2)));
+      $('#qi-docs').innerHTML = qiDoc();
+    };
+    $$('[data-qi]').forEach((el) => (el.oninput = () => { QI[el.dataset.qi] = el.value; refresh(); }));
+    $$('[data-qkind]').forEach((b) => (b.onclick = () => { QI.kind = b.dataset.qkind; renderQuick(); }));
+    const fill = (l, item) => { if (!item) return; l.unit = item.unit; l.price = item.price; l.linked = item.unit === 'م²'; };
+    $$('[data-ql]').forEach((el) => {
+      const [i, f] = el.dataset.ql.split('.'); const l = QI.lines[+i];
+      if (el.tagName === 'SELECT') { el.onchange = () => { l.unit = el.value; if (l.unit === 'م²' && l.qty === '') l.linked = true; renderQuick(); }; return; }
+      el.oninput = () => { l[f] = el.value; if (f === 'desc') { const it = all.find((c) => c.desc === el.value); if (it) { fill(l, it); renderQuick(); const n = $(`[data-ql="${i}.desc"]`); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } return; } } refresh(); };
+      el.onkeydown = (e) => {
+        if (e.key !== 'Enter') return; e.preventDefault();
+        if (+i === QI.lines.length - 1) { QI.lines.push(qiRow({ unit: 'قطعة', linked: false })); renderQuick(); }
+        const n = $(`[data-ql="${+i + 1}.${f}"]`) || $(`[data-ql="${+i + 1}.desc"]`); if (n) n.focus();
+      };
+    });
+    $$('[data-qunlink]').forEach((b) => (b.onclick = () => { const l = QI.lines[+b.dataset.qunlink]; l.linked = false; l.qty = QI.area || ''; renderQuick(); const n = $(`[data-ql="${b.dataset.qunlink}.qty"]`); if (n) n.focus(); }));
+    $$('[data-qrelink]').forEach((b) => (b.onclick = () => { const l = QI.lines[+b.dataset.qrelink]; l.linked = true; l.qty = ''; renderQuick(); }));
+    $$('[data-qdelrow]').forEach((b) => (b.onclick = () => { QI.lines.splice(+b.dataset.qdelrow, 1); if (!QI.lines.length) QI.lines.push(qiRow()); renderQuick(); }));
+    $$('[data-qchip]').forEach((b) => (b.onclick = () => {
+      const it = chips[+b.dataset.qchip];
+      const empty = QI.lines.findIndex((l) => !l.desc && !l.price);
+      const l = empty >= 0 ? QI.lines[empty] : (QI.lines.push(qiRow()), QI.lines[QI.lines.length - 1]);
+      l.desc = it.desc; fill(l, it); if (l.unit !== 'م²') l.qty = l.qty || 1; renderQuick();
+    }));
+    if ($('#qi-addrow')) $('#qi-addrow').onclick = () => { QI.lines.push(qiRow({ unit: 'قطعة', linked: false })); renderQuick(); const n = $(`[data-ql="${QI.lines.length - 1}.desc"]`); if (n) n.focus(); };
+    if ($('#qi-save')) $('#qi-save').onclick = () => {
+      if (QI.lines.some((l) => l.desc && l.unit === 'م²' && l.linked) && !(Number(QI.area) > 0)) { toast('اكتب إجمالي الأمتار أولًا', true); $('#qi-area').focus(); return; }
+      const payload = Object.assign({}, QI, { lines: QI.lines.map((l) => ({ desc: l.desc, qty: qiLineQty(l), unit: l.unit, price: l.price, linked: l.unit === 'م²' && l.linked })) });
+      const r = api('qinv.save', { invoice: payload });
+      if (r) { QI = Object.assign(r, { lines: r.lines.map((l) => qiRow(l)) }); history.replaceState(null, '', '#/quick/' + r.id); toast('حُفظت الفاتورة ' + r.no); renderQuick(); }
+    };
+  }
+
   function docHeader(title, no, date, qr) {
     const st = CAT.settings;
     const contact = [st.companyPhone && `<span>هاتف <bdi class="num">${esc(st.companyPhone)}</bdi></span>`, st.companyAddress && `<span>${esc(st.companyAddress)}</span>`,
